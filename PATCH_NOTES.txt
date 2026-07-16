@@ -1,25 +1,21 @@
-WireTone Phase 1.3.1 — Windows bootstrap PATH-length fix
+WireTone Phase 1.4 — in-memory receiver session state
 
-Problem
--------
-The old bootstrap called VsDevCmd.bat and imported every resulting environment
-variable into the current PowerShell process. Repeated runs could inflate PATH
-until cmd.exe hit its legacy command-line limit and returned:
+Adds a pure C++ receiver session boundary around the locked Phase 1 packet,
+control-payload, fragmentation, and reassembly contracts.
 
-    The input line is too long.
+Included:
+- idle/streaming lifecycle
+- stream-start requirement and stream-ID enforcement
+- deterministic replacement, stop, reset, and liveness timeout
+- fixed eight-frame completed-audio queue
+- oldest-frame drop on overflow
+- discontinuity flushing
+- deterministic diagnostics counters
+- fifth native test executable
 
-Fix
----
-- Discover cl.exe directly from the installed MSVC toolset.
-- Stop importing the Visual Studio developer environment into the parent shell.
-- Let CMake's Visual Studio generator locate and drive MSBuild directly.
-- Configure the Windows build explicitly for x64.
-
-Scope
------
-Build scripts only. No protocol, audio-frame, Android, or runtime code changes.
-
-Apply this archive over the repository root, then rerun:
-
-    .\scripts\check-environment.ps1
-    .\scripts\bootstrap-windows.ps1
+Excluded:
+- UDP sockets
+- WASAPI capture
+- Android playback
+- jitter-buffer timing
+- Opus

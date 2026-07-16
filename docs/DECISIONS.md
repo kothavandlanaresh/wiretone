@@ -107,3 +107,15 @@ most recently accepted fragment.
 **Reason:** The bound exactly covers the initial 20 ms / 48 kHz / stereo PCM
 frame, avoids heap allocation in the protocol path, makes memory use predictable,
 and prevents malformed or missing UDP fragments from growing receiver state.
+
+## D-014 — Bounded receiver session state
+
+**Status:** Accepted
+**Decision:** Keep the pre-network receiver lifecycle in shared C++ with one
+active stream, a fixed eight-frame completed-audio queue, and a 3,000 ms
+liveness timeout. A new valid `stream_start` deterministically replaces the
+active stream; stop, replacement, timeout, and explicit reset discard incomplete
+and queued data. Queue overflow drops the oldest completed frame to preserve low
+latency.
+**Reason:** The lifecycle and memory policy must be deterministic before sockets
+and platform audio APIs can introduce timing, threading, and error complexity.

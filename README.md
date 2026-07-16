@@ -30,7 +30,8 @@ The repository currently contains:
 - a shared version-1 packet-envelope library
 - typed control-payload encoders, parsers, and strict validation
 - allocation-free audio-frame fragmentation and bounded reassembly
-- native exact-byte, round-trip, malformed-input, and reassembly tests
+- a bounded in-memory receiver session state machine and completed-frame queue
+- native exact-byte, round-trip, malformed-input, reassembly, and session-state tests
 - a minimal Kotlin Android activity
 - a JNI bridge that compiles and loads the shared C++ libraries
 - project governance and decision documents

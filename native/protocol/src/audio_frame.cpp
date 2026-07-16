@@ -181,6 +181,12 @@ AudioReassemblyResult AudioFrameReassembler::expire_incomplete(
     return advance_time(now_ms);
 }
 
+void AudioFrameReassembler::reset() noexcept {
+    slots_ = {};
+    has_observed_time_ = false;
+    last_observed_time_ms_ = 0U;
+}
+
 std::size_t AudioFrameReassembler::in_flight_frame_count() const noexcept {
     return static_cast<std::size_t>(std::count_if(
         slots_.begin(),

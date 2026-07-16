@@ -81,6 +81,24 @@ Date: 2026-07-16
 - The Windows bootstrap no longer imports the complete Visual Studio environment
   into the parent PowerShell process, avoiding cumulative `PATH` inflation.
 
+## Implemented in Phase 1.4
+
+- Shared C++ receiver session lifecycle with idle and streaming states.
+- Valid `stream_start` requirement before audio or active-stream control data.
+- Deterministic active-stream replacement, stop, reset, and timeout behavior.
+- Fixed eight-frame completed-audio queue with oldest-frame drop on overflow.
+- Discontinuity flushing before the newest frame is queued.
+- Heartbeat sender-time tracking and 3,000 ms liveness expiry.
+- Counters for malformed, rejected, wrong-stream, duplicate, inconsistent,
+  expired, completed, dropped, discontinuity, and lifecycle events.
+- Pure native session-state tests.
+
+## Pending owner validation
+
+- Apply the Phase 1.4 patch on Windows.
+- Confirm all five native test executables pass under MSVC.
+- Rebuild the Android APK so the session code compiles through NDK.
+
 ## Not implemented
 
 - WASAPI capture

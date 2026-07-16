@@ -108,6 +108,8 @@ public:
 
     [[nodiscard]] std::size_t in_flight_frame_count() const noexcept;
 
+    void reset() noexcept;
+
 private:
     struct Slot {
         bool active{false};

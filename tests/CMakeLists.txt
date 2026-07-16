@@ -29,3 +29,11 @@ target_compile_features(wiretone_audio_frame_tests PRIVATE cxx_std_20)
 wiretone_enable_warnings(wiretone_audio_frame_tests)
 
 add_test(NAME wiretone_audio_frame_tests COMMAND wiretone_audio_frame_tests)
+
+add_executable(wiretone_session_tests session_tests.cpp)
+
+target_link_libraries(wiretone_session_tests PRIVATE WireTone::Protocol)
+target_compile_features(wiretone_session_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_session_tests)
+
+add_test(NAME wiretone_session_tests COMMAND wiretone_session_tests)

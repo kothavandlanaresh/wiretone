@@ -1,23 +1,30 @@
 # Next Actions
 
-## Phase 1.4 — In-memory session state
+## Phase 1.4 — Validate in-memory receiver session state
 
-Implement a pure C++ sender/receiver session state machine around the locked
-packet, control-payload, fragmentation, and reassembly contracts:
+1. Stay on branch `phase/01-protocol`.
+2. Apply the Phase 1.4 session-state patch.
+3. Run `scripts/bootstrap-windows.ps1`.
+4. Confirm all five native tests pass:
+   - `wiretone_core_tests`
+   - `wiretone_protocol_tests`
+   - `wiretone_control_payload_tests`
+   - `wiretone_audio_frame_tests`
+   - `wiretone_session_tests`
+5. Clear Android `.cxx` and `app/build` output.
+6. Run `scripts/bootstrap-android.ps1`.
+7. Confirm the Android APK and JNI library compile with the session sources.
+8. Record owner-machine results, commit, push, and tag Phase 1.4.
 
-- require `stream_start` before accepting audio
-- reject audio for the wrong stream or after `stream_stop`
-- define deterministic stream replacement and restart behavior
-- track heartbeat liveness without sockets
-- feed completed frames into a bounded receiver queue
-- expose counters for malformed, duplicate, expired, rejected, and dropped data
-- preserve discontinuity and silence semantics
-- test stop, restart, timeout, wrong-stream, and queue-overflow behavior
+## Phase 2 — After Phase 1.4 passes
 
-## Gate
+Begin Windows audio capture with a testable WASAPI loopback boundary:
 
-Phase 1.4 must pass native exact-state-transition and malformed-input tests under
-both Windows MSVC and Android NDK compilation.
+- enumerate and select the default render endpoint
+- open shared-mode loopback capture
+- normalize captured samples into the locked 48 kHz stereo PCM contract
+- surface silence, discontinuity, device-change, and error events
+- test conversion and capture-state logic separately from UDP transport
 
-Do not add UDP sockets, WASAPI capture, Android playback, jitter-buffer timing,
-or Opus until the in-memory session-state tests pass.
+Do not add UDP transport, Android playback, or Opus during the initial Phase 2
+capture increment.

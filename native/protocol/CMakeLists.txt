@@ -9,9 +9,11 @@ target_sources(
         src/byte_order.hpp
         src/control_payload.cpp
         src/packet.cpp
+        src/session.cpp
         include/wiretone/protocol/audio_frame.hpp
         include/wiretone/protocol/control_payload.hpp
         include/wiretone/protocol/packet.hpp
+        include/wiretone/protocol/session.hpp
 )
 
 target_include_directories(

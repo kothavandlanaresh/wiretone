@@ -127,3 +127,30 @@ Date: 2026-07-16
 - Direct MSVC compiler discovery: PASS
 - CMake Visual Studio generator without parent-shell environment import: PASS
 - Clean x64 CMake reconfiguration after removing the stale cache: PASS
+
+## Phase 1.4 — Validation environment
+
+Date: 2026-07-16
+
+- Receiver session-state implementation: COMPLETE
+- CMake configure: PASS
+- C++ build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- Stream-start-before-audio enforcement: PASS
+- Wrong-stream and post-stop rejection: PASS
+- Stream replacement and heartbeat timeout behavior: PASS
+- Bounded queue and oldest-frame overflow policy: PASS
+- Discontinuity queue flushing: PASS
+- Malformed, duplicate, inconsistent, and expired counters: PASS
+- Non-monotonic clock rejection: PASS
+- AddressSanitizer: PASS
+- UndefinedBehaviorSanitizer: PASS
+
+### Owner-machine Phase 1.4 validation
+
+- MSVC build and all five native tests: PENDING
+- Android NDK rebuild with session library: PENDING

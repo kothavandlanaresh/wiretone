@@ -208,7 +208,35 @@ An Opus payload contains one encoded logical audio frame. It normally uses
 `fragment_count = 1`; the generic fragmentation fields remain available if an
 encoded payload ever exceeds the datagram limit.
 
-## 8. Required rejection rules
+## 8. Receiver session contract
+
+Phase 1.4 defines the in-memory receiver lifecycle before any socket exists:
+
+- the receiver begins idle and requires a valid `stream_start` before accepting
+  audio, heartbeat, stop, or error packets
+- only one non-zero stream ID is active at a time
+- a valid `stream_start` while active replaces the old stream and clears all
+  incomplete and queued audio
+- packets for any non-active stream ID are rejected without changing state
+- a valid active-stream `stream_stop` returns the receiver to idle and clears
+  incomplete and queued audio
+- every valid active-stream packet refreshes liveness
+- 3,000 ms without a valid active-stream packet expires the session and returns
+  it to idle
+- completed frames enter a fixed eight-frame queue
+- queue overflow drops the oldest completed frame so the receiver favors current
+  audio over stale latency
+- a completed frame carrying `discontinuity` clears queued older frames before it
+  is enqueued
+- malformed, duplicate, inconsistent, expired, rejected, completed, and dropped
+  data are counted deterministically
+- receiver-report packets are outbound receiver data and are rejected when fed
+  into the receiver-side session
+
+This queue is a protocol/session boundary only. It is not the Phase 3 playback
+jitter buffer.
+
+## 9. Required rejection rules
 
 A version-1 receiver must reject a datagram when any of these is true:
 
@@ -233,7 +261,7 @@ A version-1 receiver must reject a datagram when any of these is true:
 Malformed packets must be counted for diagnostics and otherwise ignored. They
 must not crash the sender or receiver and must not mutate active stream state.
 
-## 9. Versioning and forward compatibility
+## 10. Versioning and forward compatibility
 
 Protocol version `1` uses strict interpretation:
 
@@ -245,7 +273,7 @@ Protocol version `1` uses strict interpretation:
 A future negotiation mechanism may permit multiple versions, but Phase 1 does
 not guess compatibility.
 
-## 10. Security boundary
+## 11. Security boundary
 
 Phase 1 packets are a local development contract, not a release security model.
 Discovery, authenticated pairing, replay protection, and encryption are Phase 8

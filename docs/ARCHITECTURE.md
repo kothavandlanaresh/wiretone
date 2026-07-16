@@ -21,6 +21,13 @@ Windows WASAPI loopback
 
 Platform-neutral C++20 code. It must not include Windows or Android headers.
 
+### `native/protocol`
+
+Owns the versioned wire contract, typed control payloads, audio fragmentation and
+reassembly, and the bounded receiver session lifecycle. Platform wrappers pass
+datagrams and monotonic arrival times into this layer; they do not duplicate its
+state rules.
+
 ### Windows sender
 
 Owns WASAPI capture, Windows device lifecycle, transport transmission, and the desktop
