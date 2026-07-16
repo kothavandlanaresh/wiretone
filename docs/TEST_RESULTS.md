@@ -57,5 +57,27 @@ Date: 2026-07-16
 
 ### Owner-machine Phase 1.1 validation
 
-- MSVC build and protocol tests: PENDING
-- Android NDK rebuild with protocol library: PENDING
+- MSVC build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- Android NDK rebuild with protocol library: PASS
+- GitHub publication of `main`, `phase/01-protocol`, and `phase-1.1-pass`: PASS
+
+## Phase 1.2 — Validation environment
+
+Date: 2026-07-16
+
+- Typed control-payload implementation: COMPLETE
+- CMake configure: PASS
+- C++ build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- Exact control-payload byte-layout tests: PASS
+- Control-payload round-trip tests: PASS
+- Semantic and malformed-payload rejection tests: PASS
+
+### Owner-machine Phase 1.2 validation
+
+- MSVC build and all native tests: PENDING
+- Android NDK rebuild with control-payload library: PENDING

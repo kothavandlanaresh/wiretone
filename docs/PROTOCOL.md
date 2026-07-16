@@ -1,8 +1,8 @@
 # WireTone Protocol
 
-**Protocol version:** 1  
-**Status:** Phase 1.1 packet envelope locked  
-**Transport:** UDP on the local network  
+**Protocol version:** 1
+**Status:** Phase 1.2 packet envelope and control payloads locked
+**Transport:** UDP on the local network
 **Byte order:** Network byte order (big-endian) for every multi-byte integer in
 WireTone headers and control payloads
 
@@ -125,6 +125,16 @@ An audio packet with an empty payload is valid only when `silence` is set.
 A receiver must reject unsupported codec, sample rate, channel count, or frame
 size instead of silently interpreting the stream differently.
 
+Phase 1.2 locks these semantic rules:
+
+- `codec` must be `pcm_s16le` or `opus`
+- `channels` must be `2`
+- `frame_duration_ms` must be `20`
+- `sample_rate` must be `48000`
+- PCM requires `target_bitrate = 0` and `pre_skip_samples = 0`
+- Opus requires a non-zero `target_bitrate`
+- `reserved` must be zero
+
 ### 6.2 `stream_stop` — 1 byte
 
 Initial reason values:
@@ -157,7 +167,8 @@ and liveness data; it is not the audio playback timestamp.
 - first 2 bytes: unsigned error code, big-endian
 - remaining 0–256 bytes: optional UTF-8 diagnostic message
 
-Diagnostic text must never be required for machine behavior.
+Diagnostic text must never be required for machine behavior. When present, the
+message must be well-formed UTF-8; malformed text causes the payload to be rejected.
 
 ## 7. Audio payload and fragmentation
 

@@ -13,3 +13,11 @@ target_compile_features(wiretone_protocol_tests PRIVATE cxx_std_20)
 wiretone_enable_warnings(wiretone_protocol_tests)
 
 add_test(NAME wiretone_protocol_tests COMMAND wiretone_protocol_tests)
+
+add_executable(wiretone_control_payload_tests control_payload_tests.cpp)
+
+target_link_libraries(wiretone_control_payload_tests PRIVATE WireTone::Protocol)
+target_compile_features(wiretone_control_payload_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_control_payload_tests)
+
+add_test(NAME wiretone_control_payload_tests COMMAND wiretone_control_payload_tests)

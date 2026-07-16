@@ -1,7 +1,10 @@
 #include "wiretone/protocol/packet.hpp"
 
+#include "wiretone/protocol/control_payload.hpp"
+
+#include "byte_order.hpp"
+
 #include <algorithm>
-#include <limits>
 
 namespace wiretone::protocol {
 namespace {
@@ -32,69 +35,21 @@ constexpr std::size_t frame_id_offset = 28;
     std::uint16_t payload_size) noexcept {
     switch (type) {
     case PacketType::stream_start:
-        return payload_size == 16;
+        return payload_size == stream_start_payload_size;
     case PacketType::stream_stop:
-        return payload_size == 1;
+        return payload_size == stream_stop_payload_size;
     case PacketType::audio:
         return payload_size <= maximum_payload_size;
     case PacketType::heartbeat:
-        return payload_size == 8;
+        return payload_size == heartbeat_payload_size;
     case PacketType::receiver_report:
-        return payload_size == 20;
+        return payload_size == receiver_report_payload_size;
     case PacketType::error:
-        return payload_size >= 2 && payload_size <= 258;
+        return payload_size >= error_payload_minimum_size &&
+               payload_size <= error_payload_maximum_size;
     }
 
     return false;
-}
-
-void write_u16(std::span<std::byte> output, std::size_t offset, std::uint16_t value) noexcept {
-    output[offset] = static_cast<std::byte>((value >> 8U) & 0xFFU);
-    output[offset + 1] = static_cast<std::byte>(value & 0xFFU);
-}
-
-void write_u32(std::span<std::byte> output, std::size_t offset, std::uint32_t value) noexcept {
-    output[offset] = static_cast<std::byte>((value >> 24U) & 0xFFU);
-    output[offset + 1] = static_cast<std::byte>((value >> 16U) & 0xFFU);
-    output[offset + 2] = static_cast<std::byte>((value >> 8U) & 0xFFU);
-    output[offset + 3] = static_cast<std::byte>(value & 0xFFU);
-}
-
-void write_u64(std::span<std::byte> output, std::size_t offset, std::uint64_t value) noexcept {
-    for (std::size_t index = 0; index < sizeof(value); ++index) {
-        const auto shift = static_cast<unsigned int>((sizeof(value) - 1U - index) * 8U);
-        output[offset + index] = static_cast<std::byte>((value >> shift) & 0xFFU);
-    }
-}
-
-[[nodiscard]] std::uint16_t read_u16(
-    std::span<const std::byte> input,
-    std::size_t offset) noexcept {
-    const auto high = std::to_integer<std::uint16_t>(input[offset]);
-    const auto low = std::to_integer<std::uint16_t>(input[offset + 1]);
-    return static_cast<std::uint16_t>((high << 8U) | low);
-}
-
-[[nodiscard]] std::uint32_t read_u32(
-    std::span<const std::byte> input,
-    std::size_t offset) noexcept {
-    std::uint32_t value = 0;
-    for (std::size_t index = 0; index < sizeof(value); ++index) {
-        value = static_cast<std::uint32_t>(
-            (value << 8U) | std::to_integer<std::uint32_t>(input[offset + index]));
-    }
-    return value;
-}
-
-[[nodiscard]] std::uint64_t read_u64(
-    std::span<const std::byte> input,
-    std::size_t offset) noexcept {
-    std::uint64_t value = 0;
-    for (std::size_t index = 0; index < sizeof(value); ++index) {
-        value = static_cast<std::uint64_t>(
-            (value << 8U) | std::to_integer<std::uint64_t>(input[offset + index]));
-    }
-    return value;
 }
 
 } // namespace
@@ -169,14 +124,14 @@ ProtocolError encode_header(
 
     output[version_offset] = static_cast<std::byte>(header.version);
     output[type_offset] = static_cast<std::byte>(header.type);
-    write_u16(output, flags_offset, header.flags);
-    write_u32(output, stream_id_offset, header.stream_id);
-    write_u32(output, sequence_number_offset, header.sequence_number);
-    write_u64(output, timestamp_samples_offset, header.timestamp_samples);
-    write_u16(output, payload_size_offset, header.payload_size);
+    detail::write_u16(output, flags_offset, header.flags);
+    detail::write_u32(output, stream_id_offset, header.stream_id);
+    detail::write_u32(output, sequence_number_offset, header.sequence_number);
+    detail::write_u64(output, timestamp_samples_offset, header.timestamp_samples);
+    detail::write_u16(output, payload_size_offset, header.payload_size);
     output[fragment_index_offset] = static_cast<std::byte>(header.fragment_index);
     output[fragment_count_offset] = static_cast<std::byte>(header.fragment_count);
-    write_u32(output, frame_id_offset, header.frame_id);
+    detail::write_u32(output, frame_id_offset, header.frame_id);
 
     return ProtocolError::none;
 }
@@ -207,16 +162,16 @@ ParseResult parse_datagram(std::span<const std::byte> datagram) noexcept {
 
     result.header.version = std::to_integer<std::uint8_t>(datagram[version_offset]);
     result.header.type = static_cast<PacketType>(type_value);
-    result.header.flags = read_u16(datagram, flags_offset);
-    result.header.stream_id = read_u32(datagram, stream_id_offset);
-    result.header.sequence_number = read_u32(datagram, sequence_number_offset);
-    result.header.timestamp_samples = read_u64(datagram, timestamp_samples_offset);
-    result.header.payload_size = read_u16(datagram, payload_size_offset);
+    result.header.flags = detail::read_u16(datagram, flags_offset);
+    result.header.stream_id = detail::read_u32(datagram, stream_id_offset);
+    result.header.sequence_number = detail::read_u32(datagram, sequence_number_offset);
+    result.header.timestamp_samples = detail::read_u64(datagram, timestamp_samples_offset);
+    result.header.payload_size = detail::read_u16(datagram, payload_size_offset);
     result.header.fragment_index =
         std::to_integer<std::uint8_t>(datagram[fragment_index_offset]);
     result.header.fragment_count =
         std::to_integer<std::uint8_t>(datagram[fragment_count_offset]);
-    result.header.frame_id = read_u32(datagram, frame_id_offset);
+    result.header.frame_id = detail::read_u32(datagram, frame_id_offset);
 
     const auto validation = validate_header(result.header);
     if (validation != ProtocolError::none) {

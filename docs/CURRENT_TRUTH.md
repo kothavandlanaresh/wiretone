@@ -28,11 +28,31 @@ Date: 2026-07-16
 - Exact-byte, round-trip, and malformed-packet native tests.
 - Complete initial protocol contract in `docs/PROTOCOL.md`.
 
+## Owner-validated Phase 1.1
+
+- Windows MSVC build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- Android NDK rebuild with the protocol library: PASS.
+- Git commit `232a495` is published on `main` and `phase/01-protocol`.
+- Annotated tag `phase-1.1-pass` is published.
+
+## Implemented in Phase 1.2
+
+- Typed `stream_start`, `stream_stop`, `heartbeat`, `receiver_report`, and
+  protocol-error payload values.
+- Exact network-order control-payload encoders and parsers.
+- Locked semantic validation for the initial 48 kHz, stereo, 20 ms contract.
+- PCM/Opus field-consistency checks.
+- Reserved-field and well-formed UTF-8 rejection.
+- Shared internal byte-order helpers for header and control payload code.
+- Exact-byte, round-trip, and malformed-control-payload tests.
+
 ## Pending owner validation
 
-- Apply the Phase 1.1 patch on Windows.
-- Re-run Windows native tests and confirm both test executables pass.
-- Rebuild the Android APK so the protocol library also compiles through the NDK.
+- Apply the Phase 1.2 patch on Windows.
+- Confirm all three native test executables pass under MSVC.
+- Rebuild the Android APK so the new control-payload code compiles through NDK.
 
 ## Not implemented
 

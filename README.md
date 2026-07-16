@@ -21,18 +21,20 @@ No cloud account, telemetry, advertising, or remote relay is part of V1.
 
 ## Current phase
 
-**Phase 0 — Project foundation**
+**Phase 1 — Protocol contract**
 
 The repository currently contains:
 
 - a buildable native core library
 - a console sender shell
-- native foundation tests
+- a shared version-1 packet-envelope library
+- typed control-payload encoders, parsers, and strict validation
+- native exact-byte, round-trip, and malformed-input tests
 - a minimal Kotlin Android activity
-- a JNI bridge that loads the shared C++ core
+- a JNI bridge that compiles and loads the shared C++ libraries
 - project governance and decision documents
 
-No audio capture, networking, codec, or playback code exists yet.
+No UDP sockets, audio capture, codec implementation, jitter buffer, or playback code exists yet.
 
 ## Build native foundation on Windows
 
@@ -40,29 +42,24 @@ Open **Developer PowerShell for Visual Studio** and run:
 
 ```powershell
 Set-Location C:\Path\To\wiretone
-.\scripts\check-environment.ps1
-.\scripts\bootstrap-windows.ps1
-.\scripts\run-sender-shell.ps1
+cmake -S . -B out\build\windows -DWIRETONE_BUILD_TESTS=ON
+cmake --build out\build\windows --config Debug
+ctest --test-dir out\build\windows -C Debug --output-on-failure
 ```
 
-The tests must pass and the shell must print `WireTone sender shell 0.1.0`.
-
-## Bootstrap and build the Android shell
-
-First obtain and verify the official Gradle wrapper JAR:
+Or run:
 
 ```powershell
 Set-Location C:\Path\To\wiretone
-.\scripts\bootstrap-android.ps1
+.\scripts\bootstrap-windows.ps1
 ```
 
-Then open `apps/android-receiver` in Android Studio. Install the SDK, NDK, CMake, and LLDB
-components requested by the project, connect the Pixel 9a, and run the `app` configuration.
+## Build Android shell
 
-The screen should display `WireTone native 0.1.0`, returned through JNI from the C++ core.
+Open `apps/android-receiver` in Android Studio. Install the SDK, NDK, CMake, and LLDB
+components requested by the project, then run the `app` configuration on the Pixel 9a.
 
-The Android application ID `dev.wiretone.receiver` is provisional. It will not be treated as
-permanent until the Play Console release identity is deliberately locked.
+The screen should display the version returned through JNI from the C++ core.
 
 ## Documents
 
