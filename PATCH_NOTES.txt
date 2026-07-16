@@ -1,0 +1,23 @@
+WireTone Phase 1.1 — Packet envelope and protocol contract
+
+Adds:
+- fixed 32-byte version-1 packet header;
+- strict big-endian encoder/parser;
+- 1,200-byte datagram and 1,168-byte payload limits;
+- packet types, flags, stream/sequence/timestamp/frame/fragment fields;
+- exact-byte, round-trip, and malformed-packet tests;
+- complete initial protocol specification;
+- Android NDK compilation of the shared protocol library;
+- Phase 0 owner-machine results and Phase 1 decisions in project docs.
+
+This patch intentionally does not add UDP sockets, WASAPI capture, Android audio
+playback, jitter buffering, or Opus.
+
+Before applying:
+1. Commit the completed Phase 0 foundation.
+2. Create or switch to branch phase/01-protocol.
+
+After applying:
+1. Run scripts/bootstrap-windows.ps1.
+2. Confirm both native tests pass.
+3. Run scripts/bootstrap-android.ps1.

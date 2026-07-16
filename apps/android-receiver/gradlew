@@ -1,0 +1,18 @@
+#!/bin/sh
+
+APP_HOME=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+JAVA_EXE="${JAVA_HOME:+$JAVA_HOME/bin/}java"
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if ! command -v "$JAVA_EXE" >/dev/null 2>&1 && [ ! -x "$JAVA_EXE" ]; then
+    echo "ERROR: Java 17 was not found. Set JAVA_HOME." >&2
+    exit 1
+fi
+
+if [ ! -f "$WRAPPER_JAR" ]; then
+    echo "ERROR: Gradle wrapper JAR is missing." >&2
+    echo "Run ../../scripts/bootstrap-android.ps1 on Windows first." >&2
+    exit 1
+fi
+
+exec "$JAVA_EXE" -Dorg.gradle.appname=gradlew -jar "$WRAPPER_JAR" "$@"

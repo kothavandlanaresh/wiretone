@@ -1,0 +1,37 @@
+# CMake / native builds
+/out/
+/build/
+CMakeUserPresets.json
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.VC.db
+*.VC.VC.opendb
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Signing and secrets
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+.env
+.env.*
+
+# The verified Gradle wrapper JAR is intentionally versioned.
+!apps/android-receiver/gradle/wrapper/gradle-wrapper.jar

@@ -1,0 +1,15 @@
+add_executable(wiretone_core_tests core_tests.cpp)
+
+target_link_libraries(wiretone_core_tests PRIVATE WireTone::Core)
+target_compile_features(wiretone_core_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_core_tests)
+
+add_test(NAME wiretone_core_tests COMMAND wiretone_core_tests)
+
+add_executable(wiretone_protocol_tests protocol_tests.cpp)
+
+target_link_libraries(wiretone_protocol_tests PRIVATE WireTone::Protocol)
+target_compile_features(wiretone_protocol_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_protocol_tests)
+
+add_test(NAME wiretone_protocol_tests COMMAND wiretone_protocol_tests)

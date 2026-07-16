@@ -1,0 +1,58 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 1
+  },
+  "configurePresets": [
+    {
+      "name": "dev-debug",
+      "displayName": "WireTone development debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/dev-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "WIRETONE_BUILD_TESTS": "ON",
+        "WIRETONE_BUILD_WINDOWS_SENDER": "ON"
+      }
+    },
+    {
+      "name": "dev-release",
+      "displayName": "WireTone development release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/dev-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "WIRETONE_BUILD_TESTS": "ON",
+        "WIRETONE_BUILD_WINDOWS_SENDER": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev-debug",
+      "configurePreset": "dev-debug"
+    },
+    {
+      "name": "dev-release",
+      "configurePreset": "dev-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev-debug",
+      "configurePreset": "dev-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "dev-release",
+      "configurePreset": "dev-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
