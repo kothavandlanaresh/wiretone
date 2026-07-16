@@ -21,41 +21,36 @@ No cloud account, telemetry, advertising, or remote relay is part of V1.
 
 ## Current phase
 
-**Phase 1 — Protocol contract complete**
+**Phase 2 — Windows capture in progress**
 
-The repository currently contains:
+Phase 1 is complete and owner-validated. The repository now contains:
 
-- a buildable native core library
-- a console sender shell
-- a shared version-1 packet-envelope library
-- typed control-payload encoders, parsers, and strict validation
-- allocation-free audio-frame fragmentation and bounded reassembly
-- a bounded in-memory receiver session state machine and completed-frame queue
-- native exact-byte, round-trip, malformed-input, reassembly, and session-state tests
-- a minimal Kotlin Android activity
-- a JNI bridge that compiles and loads the shared C++ libraries
-- project governance and decision documents
+- a shared version-1 packet and control-payload contract
+- bounded audio fragmentation, reassembly, and receiver-session state
+- a platform-neutral capture lifecycle contract
+- a Windows WASAPI loopback probe for the default render endpoint
+- shared-mode mix-format, endpoint, buffer, and start/stop reporting
+- native protocol and capture-lifecycle tests
+- a minimal Kotlin Android activity and JNI bridge
 
-The next implementation phase is Windows WASAPI loopback capture. No UDP sockets,
-codec implementation, jitter buffer, Android playback, discovery, pairing, or
-encryption exists yet.
+Phase 2.1 does not drain captured audio packets or convert samples yet. UDP sockets,
+Opus, Android playback, jitter buffering, discovery, pairing, and encryption also
+remain unimplemented.
 
-## Build native foundation on Windows
-
-Open **Developer PowerShell for Visual Studio** and run:
-
-```powershell
-Set-Location C:\Path\To\wiretone
-cmake -S . -B out\build\windows -DWIRETONE_BUILD_TESTS=ON
-cmake --build out\build\windows --config Debug --clean-first
-ctest --test-dir out\build\windows -C Debug --output-on-failure
-```
-
-Or run:
+## Build and test on Windows
 
 ```powershell
 Set-Location C:\Path\To\wiretone
 .\scripts\bootstrap-windows.ps1
+```
+
+The bootstrap performs a clean native rebuild and runs all tests.
+
+To execute the live WASAPI endpoint probe:
+
+```powershell
+Set-Location C:\Path\To\wiretone
+.\scripts\run-sender-shell.ps1
 ```
 
 ## Build Android shell

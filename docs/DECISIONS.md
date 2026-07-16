@@ -119,3 +119,15 @@ and queued data. Queue overflow drops the oldest completed frame to preserve low
 latency.
 **Reason:** The lifecycle and memory policy must be deterministic before sockets
 and platform audio APIs can introduce timing, threading, and error complexity.
+
+## D-015 — Initial WASAPI loopback boundary
+
+**Status:** Accepted
+**Decision:** Phase 2.1 opens the default `eRender` / `eConsole` endpoint through
+`IMMDeviceEnumerator`, uses the endpoint shared-mode mix format, initializes
+`IAudioClient` with `AUDCLNT_STREAMFLAGS_LOOPBACK`, acquires
+`IAudioCaptureClient`, and verifies start/stop without draining samples.
+**Reason:** Endpoint ownership, COM lifetime, format discovery, loopback eligibility,
+and stream lifecycle should be proven before packet draining, sample conversion,
+threading, or transport are introduced. The platform-neutral lifecycle remains
+separately testable without Windows audio hardware.

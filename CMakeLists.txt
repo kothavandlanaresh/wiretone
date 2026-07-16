@@ -19,6 +19,7 @@ include(WireToneWarnings)
 
 add_subdirectory(native/core)
 add_subdirectory(native/protocol)
+add_subdirectory(native/capture)
 
 if(WIRETONE_BUILD_WINDOWS_SENDER)
     add_subdirectory(apps/windows-sender)

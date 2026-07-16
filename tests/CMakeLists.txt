@@ -37,3 +37,12 @@ target_compile_features(wiretone_session_tests PRIVATE cxx_std_20)
 wiretone_enable_warnings(wiretone_session_tests)
 
 add_test(NAME wiretone_session_tests COMMAND wiretone_session_tests)
+
+
+add_executable(wiretone_capture_lifecycle_tests capture_lifecycle_tests.cpp)
+
+target_link_libraries(wiretone_capture_lifecycle_tests PRIVATE WireTone::Capture)
+target_compile_features(wiretone_capture_lifecycle_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_capture_lifecycle_tests)
+
+add_test(NAME wiretone_capture_lifecycle_tests COMMAND wiretone_capture_lifecycle_tests)

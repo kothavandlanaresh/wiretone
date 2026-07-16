@@ -28,10 +28,16 @@ reassembly, and the bounded receiver session lifecycle. Platform wrappers pass
 datagrams and monotonic arrival times into this layer; they do not duplicate its
 state rules.
 
+### `native/capture`
+
+Owns the platform-neutral capture lifecycle states and legal transitions. It contains
+no Windows headers and is tested independently from audio hardware.
+
 ### Windows sender
 
-Owns WASAPI capture, Windows device lifecycle, transport transmission, and the desktop
-control surface.
+Owns COM, endpoint discovery, WASAPI loopback initialization, Windows device lifecycle,
+transport transmission, and the desktop control surface. Phase 2.1 stops at endpoint
+inspection and clean start/stop; sample draining and normalization follow in Phase 2.2.
 
 ### Android native layer
 
