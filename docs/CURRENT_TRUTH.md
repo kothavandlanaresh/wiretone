@@ -208,3 +208,43 @@ successfully and routes real default-render changes into the same recovery contr
 - jitter buffering
 - Opus integration
 - discovery, pairing, encryption, foreground service, reconnection, or packaging
+
+## Implemented in Phase 3.1
+
+- Platform-neutral playback lifecycle with idle, ready, running, disconnected, and failed states.
+- Deterministic open/start/stop/disconnect/fail/reset transition tests.
+- Android NDK AAudio output stream in callback mode.
+- Requests for 48 kHz, stereo, signed 16-bit PCM, shared output, and low-latency performance.
+- Reporting of negotiated sample rate, channels, format, sharing mode, performance mode,
+  frames per burst, buffer size/capacity, and device ID.
+- Real-time callback that renders silence and updates only atomic counters.
+- Callback, rendered-frame, underrun, and disconnect reporting through a thin JNI surface.
+- Thin Kotlin lifecycle/status UI with explicit start and stop controls.
+- Android bootstrap builds the debug APK and native library.
+
+## Owner-validated Phase 3.1
+
+- Windows MSVC clean native build: PASS.
+- All ten native tests: PASS.
+- Android NDK and debug APK build: PASS.
+- Pixel 9a APK installation and launch: PASS.
+- AAudio stream open: PASS.
+- AAudio start and real-time callback activity: PASS.
+- AAudio stop and clean return to `ready`: PASS.
+- Final playback state: `ready`.
+- Playback error: `none`.
+- AAudio result: `0`.
+- Negotiated sample rate: 48,000 Hz.
+- Negotiated channel count: 2.
+- Negotiated format: signed 16-bit PCM (`pcm_i16`).
+- Negotiated sharing mode: `shared`.
+- Negotiated performance mode: `low_latency`.
+- Frames per burst: 96.
+- Buffer size: 768 frames.
+- Buffer capacity: 1,536 frames.
+- Device ID: 3.
+- Callback count in the recorded run: 1,787.
+- Rendered silence frames in the recorded run: 171,552.
+- Underruns: 0.
+- Disconnect events: 0.
+- Output remained locally generated silence; no network or captured-PCM handoff existed.

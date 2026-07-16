@@ -1,49 +1,43 @@
-WireTone Phase 2.4 — owner-validated default-device invalidation and capture recovery
+WireTone Phase 3.1 — owner-validated Android AAudio output boundary
 
 Included:
-- platform-neutral bounded recovery controller
-- stable, restart-pending, restarting, and failed states
-- maximum three attempts per recovery cycle
-- device-invalidation and default-device-change counters
-- one-shot post-recovery discontinuity state
-- sequence-preserving partial PCM discard
-- Windows `IMMNotificationClient` registration for default render changes
-- WASAPI invalidation detection during packet draining
-- current default endpoint reacquisition and mix-format revalidation
-- loopback restart with unsupported replacement-format rejection
-- deterministic simulated-invalidation live probe
-- ninth native recovery test executable
+- platform-neutral playback lifecycle with idle, ready, running, disconnected, and failed states
+- tenth native test executable
+- Android NDK AAudio output owner
+- callback-mode output requesting 48 kHz stereo signed 16-bit PCM
+- requested shared mode and low-latency performance mode
+- actual negotiated stream-property reporting
+- real-time callback that renders silence only
+- callback, rendered-frame, underrun, and disconnect counters
+- thin JNI open/start/stop/close/status surface
+- thin Kotlin status UI with explicit start and stop controls
+- Android bootstrap that builds the debug APK and native library
 
 Owner validation:
 - Windows MSVC clean build: PASS
-- all nine native tests: PASS
-- endpoint-notification callback compilation: PASS
-- simulated invalidation endpoint reconstruction: PASS
-- post-recovery completed PCM frame: PASS
-- packets drained: 4
-- frames drained: 1,920
-- PCM bytes produced: 7,680
-- completed 20 ms PCM frames: 2
-- discontinuity PCM frames: 2
-- dropped partial PCM frames: 0
-- last completed PCM sequence: 2
-- recovery attempts: 1
-- successful recoveries: 1
-- failed recoveries: 0
-- device invalidations: 1
-- default-device changes observed: 0
-- post-recovery discontinuity PCM frames: 1
-
-Documented limitation:
-- a real interactive Windows default-output-device switch was not performed
-- the deterministic invalidation used the same endpoint teardown, reacquisition,
-  format validation, loopback initialization, restart, and discontinuity path
+- all ten native tests: PASS
+- Android NDK and debug APK build: PASS
+- Pixel 9a APK installation and launch: PASS
+- AAudio stream open: PASS
+- AAudio start and callback activity: PASS
+- AAudio stop and return to ready: PASS
+- AAudio result: 0
+- negotiated sample rate: 48,000 Hz
+- negotiated channels: 2
+- negotiated format: pcm_i16
+- sharing mode: shared
+- performance mode: low_latency
+- frames per burst: 96
+- buffer size/capacity: 768 / 1,536 frames
+- device ID: 3
+- callback count: 1,787
+- rendered silence frames: 171,552
+- underruns: 0
+- disconnect events: 0
 
 Excluded:
-- retained PCM queues or files
-- background capture worker and cross-thread handoff
+- PCM playback queue or captured-Windows audio handoff
 - UDP transport
-- Android playback
 - jitter buffering
 - Opus
-- discovery, pairing, and encryption
+- foreground service, discovery, pairing, and encryption

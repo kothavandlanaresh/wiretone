@@ -452,3 +452,80 @@ Phase 2.4 default-device invalidation and capture recovery: PASS
 - The deterministic invalidation exercised the same endpoint teardown,
   default-endpoint reacquisition, mix-format validation, loopback initialization,
   restart, sequence-preserving partial discard, and post-recovery discontinuity path.
+
+## Phase 3.1 — Validation environment
+
+Date: 2026-07-16
+
+- Platform-neutral playback lifecycle implementation: COMPLETE
+- Playback lifecycle transition tests: PASS
+- Existing protocol and capture regression tests: PASS
+- CMake configure: PASS
+- C++ build: PASS
+- Combined native tests: PASS — 10/10
+- Android AAudio NDK compilation: PASS
+- Android debug APK build: PASS
+- Pixel 9a APK installation and launch: PASS
+- Pixel 9a AAudio stream open/start/stop: PASS
+- Pixel 9a non-zero callback/rendered-frame counters: PASS
+
+### Owner-machine Phase 3.1 validation
+
+Date: 2026-07-17
+
+- Windows MSVC clean build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- `wiretone_pcm_frame_assembler_tests`: PASS
+- `wiretone_capture_recovery_tests`: PASS
+- `wiretone_playback_lifecycle_tests`: PASS
+- Combined native tests: PASS — 10/10
+- Android NDK and debug APK build: PASS
+- Pixel 9a device authorization: PASS
+- APK install and activity launch: PASS
+- AAudio open: PASS
+- AAudio start and callback activity: PASS
+- AAudio stop and return to ready: PASS
+- Final playback state: `ready`
+- Error: `none`
+- AAudio result: 0
+- Negotiated sample rate: 48,000 Hz
+- Negotiated channels: 2
+- Negotiated format: `pcm_i16`
+- Sharing mode: `shared`
+- Performance mode: `low_latency`
+- Frames per burst: 96
+- Buffer size: 768 frames
+- Buffer capacity: 1,536 frames
+- Device ID: 3
+- Callback count: 1,787
+- Rendered silence frames: 171,552
+- Underruns: 0
+- Disconnect events: 0
+- Final Phase 3.1 result: PASS
+
+Observed Pixel status:
+
+```text
+Playback state: ready
+Error: none
+AAudio result: 0
+
+Negotiated: 48000 Hz, 2 channels, pcm_i16
+Sharing: shared
+Performance: low_latency
+Frames per burst: 96
+Buffer: 768 /1536 frames
+Device ID: 3
+Requested 48 kHz stereo PCM16: GRANTED
+
+Callbacks: 1787
+Rendered silence frames: 171552
+Underruns: 0
+Disconnect events: 0
+```

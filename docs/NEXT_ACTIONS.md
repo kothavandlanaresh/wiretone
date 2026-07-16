@@ -1,38 +1,41 @@
 # Next Actions
 
-## Close Phase 2
+## Close Phase 3.1
 
-1. Commit the Phase 2.4 capture-recovery implementation.
-2. Commit the owner-machine validation record.
-3. Push branch `phase/02-windows-capture`.
-4. Publish annotated tag `phase-2.4-pass`.
-5. Fast-forward `main` to the validated Phase 2 checkpoint.
-6. Create and push branch `phase/03-android-output`.
+1. Commit the Android AAudio output-boundary implementation.
+2. Commit the owner-machine and Pixel 9a validation record.
+3. Push branch `phase/03-android-output`.
+4. Publish annotated tag `phase-3.1-pass`.
 
-## Phase 3.1 — Android native output boundary
+## Phase 3.2 — Bounded native PCM playback queue
 
-Implement the smallest independently testable Android playback increment:
+Stay on branch `phase/03-android-output`.
 
-- keep Kotlin limited to lifecycle, permissions/status presentation, and JNI calls
-- keep native playback ownership in the Android NDK C++ layer
-- open an AAudio output stream in callback mode
-- request the locked 48 kHz stereo signed 16-bit PCM contract
-- request low-latency performance and shared output without assuming the request is granted
-- report the actual negotiated sample rate, channel count, format, sharing mode,
-  performance mode, burst size, and buffer capacity
-- provide deterministic native start, stop, error, and disconnect states
-- render silence from the callback for this initial boundary
-- count callback invocations, rendered frames, underruns, and disconnect events
-- avoid allocation, locking, logging, JNI calls, and blocking work inside the audio callback
+Implement the next independently testable Android playback increment:
 
-## Phase 3.1 validation gate
+- add a fixed-capacity single-producer/single-consumer PCM queue in platform-neutral C++
+- accept exact 960-frame / 20 ms stereo signed 16-bit PCM logical frames
+- preserve frame sequence and discontinuity metadata at the queue boundary
+- consume queued PCM from the AAudio callback without allocation, locking, JNI,
+  logging, sleeping, or blocking work
+- render silence when the queue is empty and count underrun callbacks and frames
+- define an explicit bounded overflow policy and expose dropped-frame counters
+- reset queued and partially consumed data deterministically on stop or disconnect
+- provide a native local test producer that submits a deterministic, amplitude-limited
+  PCM signal for Pixel playback validation
+- keep Kotlin limited to invoking the local test and displaying native counters
+- keep all PCM local to the Android process
 
-- all existing native protocol/capture tests remain green
-- new platform-neutral playback-lifecycle tests pass
+## Phase 3.2 validation gate
+
+- all existing ten native tests remain green
+- new queue tests cover FIFO order, capacity, overflow policy, partial callback reads,
+  empty-queue silence, reset, discontinuity, and sequence metadata
 - Android NDK and debug APK builds pass
-- the Pixel 9a opens, starts, and stops the native output stream cleanly
-- the app reports negotiated stream properties and non-zero rendered-frame counters
-- no UDP receiver, jitter buffer, Opus, discovery, pairing, or encryption is introduced
+- the Pixel 9a plays the bounded local native test signal and returns cleanly to ready
+- queued, consumed, silent-fill, overflow, and underrun counters are visible
+- the callback remains real-time safe
+- no UDP, Windows PCM handoff, jitter buffer, Opus, discovery, pairing, encryption,
+  or foreground service is introduced
 
-Do not add network transport or feed captured Windows PCM into Android during Phase 3.1.
-The first end-to-end PCM path remains Phase 4.
+The first Windows-to-Android PCM path remains Phase 4.
