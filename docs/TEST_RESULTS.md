@@ -529,3 +529,124 @@ Rendered silence frames: 171552
 Underruns: 0
 Disconnect events: 0
 ```
+
+## Phase 3.2 — Validation environment
+
+Date: 2026-07-17
+
+- Fixed-capacity SPSC PCM queue: COMPLETE
+- Exact 960-frame stereo PCM16 input validation: PASS
+- FIFO and cross-frame partial-read tests: PASS
+- Sequence and discontinuity metadata tests: PASS
+- Empty-queue exact-silence tests: PASS
+- Drop-newest capacity and overflow tests: PASS
+- Partial discard and reset tests: PASS
+- Ring wrap tests: PASS
+- Existing native regressions: PASS — 10/10
+- `wiretone_pcm_playback_queue_tests`: PASS
+- Combined native tests: PASS — 11/11
+- GCC AddressSanitizer: PASS — 11/11
+- GCC UndefinedBehaviorSanitizer: PASS — 11/11
+- GCC ThreadSanitizer concurrent queue test: PASS
+- Android AAudio/JNI strict syntax check: PASS
+- Clean archive-overlay build: PASS — 11/11
+
+### Owner-machine Phase 3.2 validation
+
+Date: 2026-07-17
+
+- Windows MSVC clean build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- `wiretone_pcm_frame_assembler_tests`: PASS
+- `wiretone_capture_recovery_tests`: PASS
+- `wiretone_playback_lifecycle_tests`: PASS
+- `wiretone_pcm_playback_queue_tests`: PASS
+- Combined native tests: PASS — 11/11
+- Android NDK and debug APK build: PASS
+- Phase 3.2 native markers inside ARM64 APK library: PASS
+- Pixel 9a fresh install and activity launch: PASS
+- AAudio result: 0
+- Negotiated sample rate: 48,000 Hz
+- Negotiated channels: 2
+- Negotiated format: `pcm_i16`
+- Sharing mode: `shared`
+- Performance mode: `low_latency`
+- Frames per burst: 96
+- Buffer size: 768 frames
+- Buffer capacity: 1,536 frames
+- Device ID: 3
+- Queue capacity: 32 logical frames
+- Local-test batches: 1
+- Local-test logical frames: 24
+- Enqueued logical frames: 24
+- Consumed logical frames: 24
+- PCM frames rendered from queue: 23,040
+- Consumed discontinuities: 1
+- Last enqueued sequence: 24
+- Last consumed sequence: 24
+- Dropped-newest logical frames: 0
+- Discarded logical frames: 0
+- Discarded partial frames: 0
+- Queued logical frames after drain: 0
+- Queued PCM frames after drain: 0
+- AAudio callbacks: 2,819
+- Rendered output frames: 270,624
+- Silence-fill frames: 247,584
+- Queue-underrun callbacks: 2,579
+- AAudio underruns: 0
+- Disconnect events: 0
+- Final captured playback state: `ready`
+- Native error: `none`
+- Queue error: `none`
+- Final Phase 3.2 technical result: PASS
+
+Observed Pixel status:
+
+```text
+Playback state: ready
+Error: none
+Queue error: none
+AAudio result: 0
+Negotiated: 48000 Hz, 2 channels, pcm_i16
+Sharing: shared
+Performance: low_latency
+Frames per burst: 96
+Buffer: 768 / 1536 frames
+Device ID: 3
+Requested 48 kHz stereo PCM16: GRANTED
+Callbacks: 2819
+Rendered output frames: 270624
+AAudio underruns: 0
+Disconnect events: 0
+Queue capacity: 32 logical frames
+Queued logical frames: 0
+Queued PCM frames: 0
+Enqueued logical frames: 24
+Consumed logical frames: 24
+PCM frames from queue: 23040
+Silence-fill frames: 247584
+Queue underrun callbacks: 2579
+Dropped newest logical frames: 0
+Discarded logical frames: 0
+Discarded partial frames: 0
+Consumed discontinuities: 1
+Last enqueued sequence: 24
+Last consumed sequence: 24
+Last consumed flags: 0
+Local test batches: 1
+Local test logical frames: 24
+```
+
+### Documented validation limitations
+
+- Subjective audibility of the short local test tone was not explicitly reported.
+- UI Automator temporarily stopped the Activity; `MainActivity.onStop()` intentionally
+  stopped AAudio before the terminal snapshot, so the captured state was `ready`.
+- The non-zero callbacks, queue consumption, sequence, discontinuity, and rendered-frame
+  counters prove the stream ran and drained before that lifecycle stop.

@@ -248,3 +248,81 @@ successfully and routes real default-render changes into the same recovery contr
 - Underruns: 0.
 - Disconnect events: 0.
 - Output remained locally generated silence; no network or captured-PCM handoff existed.
+
+## Implemented in Phase 3.2
+
+- Platform-neutral fixed-capacity SPSC PCM playback queue.
+- Thirty-two exact 960-frame / 20 ms stereo PCM16 logical-frame slots.
+- Lock-free producer/consumer positions and fixed storage after construction.
+- Arbitrary AAudio callback-sized reads, including partial and cross-frame reads.
+- FIFO sequence and discontinuity metadata preservation.
+- Explicit drop-newest overflow policy.
+- Exact silence fill when callback demand exceeds queued PCM.
+- Queue-output, silence-fill, queue-underrun, overflow, discard, and sequence counters.
+- Deterministic queue and partial-frame discard after confirmed AAudio stop.
+- Exact 48 kHz stereo PCM16 contract enforcement for queued playback.
+- Android-local 480 ms, 440 Hz, amplitude-limited test signal.
+- Thin Kotlin controls and JNI calls; no network or Windows PCM handoff.
+- Eleventh native test executable.
+
+## Owner-validated Phase 3.2
+
+- Windows MSVC clean build: PASS.
+- All eleven native tests: PASS.
+- Android NDK and debug APK build: PASS.
+- Phase 3.2 native markers inside the ARM64 APK library: PASS.
+- Pixel 9a fresh APK installation and launch: PASS.
+- AAudio result: 0.
+- Negotiated stream: 48,000 Hz, stereo, signed 16-bit PCM.
+- Sharing mode: `shared`.
+- Performance mode: `low_latency`.
+- Frames per burst: 96.
+- Buffer size: 768 frames.
+- Buffer capacity: 1,536 frames.
+- Queue capacity: 32 logical frames.
+- Local-test batches: 1.
+- Local-test logical frames: 24.
+- Enqueued logical frames: 24.
+- Consumed logical frames: 24.
+- PCM frames rendered from the queue: 23,040.
+- Consumed discontinuities: 1.
+- Last enqueued sequence: 24.
+- Last consumed sequence: 24.
+- Dropped-newest logical frames: 0.
+- Discarded logical frames: 0.
+- Discarded partial frames: 0.
+- Queued logical frames after drain: 0.
+- Queued PCM frames after drain: 0.
+- AAudio callbacks: 2,819.
+- Rendered output frames: 270,624.
+- Silence-fill frames: 247,584.
+- Queue-underrun callbacks: 2,579.
+- AAudio underruns: 0.
+- Disconnect events: 0.
+- Final captured state: `ready`.
+- Native error: `none`.
+- Queue error: `none`.
+
+## Phase 3 completion
+
+The Android output phase is complete for the bounded V1 playback contract:
+
+- native AAudio stream ownership and lifecycle
+- exact 48 kHz stereo PCM16 negotiation
+- low-latency shared callback output
+- fixed-capacity lock-free PCM handoff
+- exact 960-frame logical input units
+- partial callback consumption across logical-frame boundaries
+- explicit overflow, silence-fill, underrun, discard, sequence, and discontinuity behavior
+- deterministic stop/reset semantics
+- Android-local native test-signal validation
+
+Documented limitations:
+
+- subjective audibility of the short local test tone was not explicitly reported
+- UI Automator temporarily stopped the Activity; `MainActivity.onStop()` intentionally
+  stopped AAudio before the terminal snapshot, so the captured state was `ready`
+- the non-zero callback, queue-consumption, sequence, discontinuity, and rendered-frame
+  counters prove the stream ran and drained before that lifecycle stop
+
+The next implementation phase is Phase 4: the first Windows-to-Android PCM path.

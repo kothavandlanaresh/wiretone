@@ -1,43 +1,64 @@
-WireTone Phase 3.1 — owner-validated Android AAudio output boundary
+WireTone Phase 3.2 — owner-validated bounded native PCM playback queue
 
 Included:
-- platform-neutral playback lifecycle with idle, ready, running, disconnected, and failed states
-- tenth native test executable
-- Android NDK AAudio output owner
-- callback-mode output requesting 48 kHz stereo signed 16-bit PCM
-- requested shared mode and low-latency performance mode
-- actual negotiated stream-property reporting
-- real-time callback that renders silence only
-- callback, rendered-frame, underrun, and disconnect counters
-- thin JNI open/start/stop/close/status surface
-- thin Kotlin status UI with explicit start and stop controls
-- Android bootstrap that builds the debug APK and native library
+- fixed-capacity 32-slot SPSC queue in platform-neutral C++20
+- exact 960-frame / 20 ms stereo signed 16-bit PCM logical-frame input
+- lock-free producer/consumer positions and fixed slot storage
+- arbitrary callback-sized partial consumption across logical-frame boundaries
+- FIFO sequence and discontinuity metadata preservation
+- explicit drop-newest overflow policy with counters
+- exact silence fill when the queue is empty
+- queue-output, silence-fill, underrun, drop, discard, and sequence counters
+- deterministic queued and partially consumed data discard after AAudio stop
+- exact 48 kHz stereo PCM16 contract enforcement before queued playback
+- 480 ms amplitude-limited 440 Hz Android-local native test signal
+- thin JNI/Kotlin controls for local test playback, silence output, stop, and status
+- eleventh native test executable
 
 Owner validation:
 - Windows MSVC clean build: PASS
-- all ten native tests: PASS
+- all eleven native tests: PASS
 - Android NDK and debug APK build: PASS
-- Pixel 9a APK installation and launch: PASS
-- AAudio stream open: PASS
-- AAudio start and callback activity: PASS
-- AAudio stop and return to ready: PASS
+- Phase 3.2 native markers inside ARM64 APK library: PASS
+- Pixel 9a fresh APK installation and launch: PASS
 - AAudio result: 0
-- negotiated sample rate: 48,000 Hz
-- negotiated channels: 2
-- negotiated format: pcm_i16
+- negotiated stream: 48,000 Hz, stereo, signed 16-bit PCM
 - sharing mode: shared
 - performance mode: low_latency
 - frames per burst: 96
 - buffer size/capacity: 768 / 1,536 frames
-- device ID: 3
-- callback count: 1,787
-- rendered silence frames: 171,552
-- underruns: 0
+- queue capacity: 32 logical frames
+- local-test batches: 1
+- local-test logical frames: 24
+- enqueued logical frames: 24
+- consumed logical frames: 24
+- PCM frames rendered from queue: 23,040
+- consumed discontinuities: 1
+- last enqueued sequence: 24
+- last consumed sequence: 24
+- dropped-newest logical frames: 0
+- discarded logical frames: 0
+- discarded partial frames: 0
+- queued logical frames after drain: 0
+- queued PCM frames after drain: 0
+- AAudio callback count: 2,819
+- rendered output frames: 270,624
+- silence-fill frames: 247,584
+- queue-underrun callbacks: 2,579
+- AAudio underruns: 0
 - disconnect events: 0
+- final captured state: ready
+- native error: none
+- queue error: none
+
+Documented limitations:
+- subjective audibility of the short local test tone was not explicitly reported
+- UI Automator temporarily stopped the Activity; `MainActivity.onStop()` intentionally
+  stopped AAudio before the terminal snapshot, so the captured state was `ready`
+- the non-zero callback, queue-consumption, sequence, discontinuity, and rendered-frame
+  counters prove the stream ran and drained before that lifecycle stop
 
 Excluded:
-- PCM playback queue or captured-Windows audio handoff
-- UDP transport
-- jitter buffering
-- Opus
+- Windows PCM handoff and UDP transport
+- jitter buffering and Opus
 - foreground service, discovery, pairing, and encryption
