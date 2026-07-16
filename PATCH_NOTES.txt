@@ -1,40 +1,47 @@
-WireTone Phase 2.3 — owner-validated exact 20 ms PCM frame assembly
+WireTone Phase 2.4 — owner-validated default-device invalidation and capture recovery
 
 Included:
-- exact 960-frame / 3,840-byte stereo PCM logical frames
-- allocation-free fixed frame storage after construction
-- synchronous non-owning completed-frame callback
-- split-packet, exact-packet, and multi-frame packet handling
-- monotonically increasing completed-frame sequence numbers
-- device-position and QPC timestamp propagation from each frame's first sample
-- discontinuity-driven partial-frame discard and first-frame marking
-- silence marking only when every contributing capture region is silent
-- timestamp-error propagation across contributing packets
-- deterministic reset of partial data and frame sequence
-- eighth native test executable
-- live sender counters for completed, silent, discontinuous, timestamp-error, and
-  dropped-partial PCM frames
+- platform-neutral bounded recovery controller
+- stable, restart-pending, restarting, and failed states
+- maximum three attempts per recovery cycle
+- device-invalidation and default-device-change counters
+- one-shot post-recovery discontinuity state
+- sequence-preserving partial PCM discard
+- Windows `IMMNotificationClient` registration for default render changes
+- WASAPI invalidation detection during packet draining
+- current default endpoint reacquisition and mix-format revalidation
+- loopback restart with unsupported replacement-format rejection
+- deterministic simulated-invalidation live probe
+- ninth native recovery test executable
 
 Owner validation:
 - Windows MSVC clean build: PASS
-- all eight native tests: PASS
-- live exact 960-frame PCM assembly: PASS
-- packets drained: 3
-- frames drained: 1,440
-- PCM bytes produced: 5,760
-- completed 20 ms PCM frames: 1
-- silent PCM frames: 0
-- discontinuity PCM frames: 1
-- timestamp-error PCM frames: 0
-- dropped partial PCM frames: 1
-- last completed PCM sequence: 1
-- last completed device position: 556,498,080 frames
-- last completed QPC position: 116,459,893,447 in 100 ns units
+- all nine native tests: PASS
+- endpoint-notification callback compilation: PASS
+- simulated invalidation endpoint reconstruction: PASS
+- post-recovery completed PCM frame: PASS
+- packets drained: 4
+- frames drained: 1,920
+- PCM bytes produced: 7,680
+- completed 20 ms PCM frames: 2
+- discontinuity PCM frames: 2
+- dropped partial PCM frames: 0
+- last completed PCM sequence: 2
+- recovery attempts: 1
+- successful recoveries: 1
+- failed recoveries: 0
+- device invalidations: 1
+- default-device changes observed: 0
+- post-recovery discontinuity PCM frames: 1
+
+Documented limitation:
+- a real interactive Windows default-output-device switch was not performed
+- the deterministic invalidation used the same endpoint teardown, reacquisition,
+  format validation, loopback initialization, restart, and discontinuity path
 
 Excluded:
 - retained PCM queues or files
-- default-device invalidation recovery
-- resampling and channel remixing
+- background capture worker and cross-thread handoff
 - UDP transport
 - Android playback
 - jitter buffering

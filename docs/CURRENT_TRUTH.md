@@ -132,10 +132,77 @@ does not retain audio after each packet is counted.
 - Last completed QPC position: 116,459,893,447 in 100 ns units.
 - Completed PCM remained local in memory and was not retained or sent.
 
+
+## Implemented in Phase 2.4
+
+- Platform-neutral capture-recovery controller with stable, pending, restarting, and
+  failed states.
+- Bounded maximum of three restart attempts per recovery cycle.
+- Coalesced device-invalidation and default-device-change triggers with counters.
+- One-shot post-recovery discontinuity state.
+- Sequence-preserving partial PCM discard separate from full assembler reset.
+- Windows `IMMNotificationClient` registration for `eRender` / `eConsole` changes.
+- WASAPI invalidation recovery from packet-size, buffer-acquisition, buffer-release,
+  and subsequent packet-size calls.
+- Current default endpoint reacquisition, mix-format revalidation, loopback restart,
+  and unsupported replacement-format rejection.
+- Deterministic simulated-invalidation sender probe that exercises the real endpoint
+  reconstruction path.
+- Recovery attempt, success, failure, invalidation, default-device-change, and
+  post-recovery discontinuity-frame counters.
+- Ninth native test executable for recovery transitions and bounded retry behavior.
+
+## Owner-validated Phase 2.4
+
+- Windows MSVC clean build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- `wiretone_control_payload_tests`: PASS.
+- `wiretone_audio_frame_tests`: PASS.
+- `wiretone_session_tests`: PASS.
+- `wiretone_capture_lifecycle_tests`: PASS.
+- `wiretone_captured_packet_tests`: PASS.
+- `wiretone_pcm_frame_assembler_tests`: PASS.
+- `wiretone_capture_recovery_tests`: PASS.
+- Endpoint-notification callback compilation against the owner Windows SDK: PASS.
+- Deterministic simulated invalidation and real endpoint reconstruction path: PASS.
+- Captured packets: 4.
+- Captured frames: 1,920.
+- Normalized PCM bytes: 7,680.
+- Completed PCM frames: 2.
+- Discontinuity PCM frames: 2.
+- Dropped partial PCM frames: 0.
+- Last completed PCM sequence: 2.
+- Recovery attempts: 1.
+- Successful recoveries: 1.
+- Failed recoveries: 0.
+- Device invalidations: 1.
+- Default-device changes observed during this probe: 0.
+- Post-recovery discontinuity PCM frames: 1.
+- Completed PCM remained local in memory and was not retained or sent.
+
+## Phase 2 completion
+
+The Windows capture phase is complete for the bounded V1 capture contract:
+
+- default render-endpoint discovery and shared-mode loopback initialization
+- 48 kHz stereo float32 packet draining and signed 16-bit PCM normalization
+- exact 960-frame / 20 ms logical PCM assembly
+- metadata, silence, timestamp-error, and discontinuity propagation
+- bounded endpoint invalidation/default-device recovery
+- monotonic logical-frame sequence continuity across recovery
+
+The final Phase 2 checkpoint is the annotated `phase-2.4-pass` tag after the
+owner-validated implementation and validation-record commits are published.
+
+Documented limitation: the owner probe exercised deterministic invalidation through
+the same endpoint teardown and reconstruction path, but did not perform an interactive
+Windows default-output-device switch. The registered notification callback compiled
+successfully and routes real default-render changes into the same recovery controller.
+
 ## Not implemented
 
 - retained PCM queues, files, or transport handoff
-- WASAPI default-device invalidation and restart recovery
 - UDP socket transport
 - Android audio output
 - jitter buffering

@@ -358,3 +358,97 @@ Last completed device position: 556498080 frames
 Last completed QPC position: 116459893447 x 100 ns
 Phase 2.3 exact 20 ms PCM frame assembly: PASS
 ```
+
+## Phase 2.4 — Validation environment
+
+Date: 2026-07-16
+
+- Platform-neutral recovery controller: COMPLETE
+- Three-attempt restart bound: COMPLETE
+- Repeated-trigger coalescing tests: PASS
+- Retryable and non-retryable failure tests: PASS
+- One-shot discontinuity tests: PASS
+- Sequence-preserving partial-discard tests: PASS
+- CMake configure: PASS
+- C++ build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- `wiretone_pcm_frame_assembler_tests`: PASS
+- `wiretone_capture_recovery_tests`: PASS
+- Combined native tests: PASS — 9/9
+- GCC AddressSanitizer: PASS — 9/9
+- GCC UndefinedBehaviorSanitizer: PASS — 9/9
+
+### Owner-machine Phase 2.4 validation
+
+- Windows MSVC clean build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- `wiretone_pcm_frame_assembler_tests`: PASS
+- `wiretone_capture_recovery_tests`: PASS
+- Endpoint-notification callback compilation: PASS
+- Simulated invalidation endpoint reacquisition: PASS
+- Successful post-recovery PCM frame: PASS
+- Recovery discontinuity propagation: PASS
+- Monotonic completed-frame sequence after recovery: PASS
+- Packets drained: 4
+- Frames drained: 1,920
+- PCM bytes produced: 7,680
+- Silent packets: 0
+- Discontinuity packets: 2
+- Timestamp-error packets: 0
+- Empty polls: 2
+- Completed 20 ms PCM frames: 2
+- Discontinuity PCM frames: 2
+- Dropped partial PCM frames: 0
+- Last completed PCM sequence: 2
+- Recovery attempts: 1
+- Successful recoveries: 1
+- Failed recoveries: 0
+- Device invalidations: 1
+- Default-device changes: 0
+- Recovery discontinuity PCM frames: 1
+- Final sender-shell Phase 2.4 result: PASS
+
+Observed owner-machine output:
+
+```text
+Default render endpoint: Virtual Speakers (Virtual Speakers for AudioRelay)
+Mix format: 48000 Hz, 2 channels, 32 container bits, 32 valid bits, floating_point, extensible
+Endpoint buffer: 1056 frames
+Packets drained: 4
+Frames drained: 1920
+PCM bytes produced: 7680
+Silent packets: 0
+Discontinuity packets: 2
+Timestamp-error packets: 0
+Empty polls: 2
+Completed 20 ms PCM frames: 2
+Discontinuity PCM frames: 2
+Dropped partial PCM frames: 0
+Last completed PCM sequence: 2
+Recovery attempts: 1
+Successful recoveries: 1
+Failed recoveries: 0
+Device invalidations: 1
+Default-device changes: 0
+Recovery discontinuity PCM frames: 1
+Phase 2.4 default-device invalidation and capture recovery: PASS
+```
+
+### Documented validation limitation
+
+- A real interactive Windows default-output-device switch was not performed.
+- The deterministic invalidation exercised the same endpoint teardown,
+  default-endpoint reacquisition, mix-format validation, loopback initialization,
+  restart, sequence-preserving partial discard, and post-recovery discontinuity path.
