@@ -107,5 +107,23 @@ Date: 2026-07-16
 
 ### Owner-machine Phase 1.3 validation
 
-- MSVC build and all native tests: PENDING
-- Android NDK rebuild with audio-frame library: PENDING
+- Android NDK rebuild with audio-frame library: PASS
+- Windows environment checker after bootstrap correction: PASS
+- Visual Studio 18 Community / MSVC discovery: PASS
+- CMake x64 configure and generation: PASS
+- MSVC native build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- Commit `e3fe9ff` pushed to `phase/01-protocol`: PASS
+- Premature `phase-1.3-pass` tag removed before final Windows validation: PASS
+
+### Windows bootstrap correction
+
+- Reproduced failure: `cmd.exe` reported `The input line is too long`: PASS
+- Root cause: importing the complete Visual Studio environment into the parent
+  PowerShell process caused cumulative environment growth.
+- Direct MSVC compiler discovery: PASS
+- CMake Visual Studio generator without parent-shell environment import: PASS
+- Clean x64 CMake reconfiguration after removing the stale cache: PASS

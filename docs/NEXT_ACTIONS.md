@@ -1,31 +1,23 @@
 # Next Actions
 
-## Phase 1.3 — Validate audio fragmentation and bounded reassembly
+## Phase 1.4 — In-memory session state
 
-1. Stay on branch `phase/01-protocol`.
-2. Apply the Phase 1.3 audio-frame patch.
-3. Run `scripts/bootstrap-windows.ps1`.
-4. Confirm all four native tests pass:
-   - `wiretone_core_tests`
-   - `wiretone_protocol_tests`
-   - `wiretone_control_payload_tests`
-   - `wiretone_audio_frame_tests`
-5. Clear Android `.cxx` and `app/build` output.
-6. Run `scripts/bootstrap-android.ps1`.
-7. Confirm the Android APK and JNI library build with the new protocol sources.
-8. Commit, push, and tag Phase 1.3.
+Implement a pure C++ sender/receiver session state machine around the locked
+packet, control-payload, fragmentation, and reassembly contracts:
 
-## Phase 1.4 — After Phase 1.3 passes
-
-Implement an in-memory sender/receiver session state machine around the locked
-packet and payload types:
-
-- require `stream_start` before audio
+- require `stream_start` before accepting audio
 - reject audio for the wrong stream or after `stream_stop`
+- define deterministic stream replacement and restart behavior
 - track heartbeat liveness without sockets
-- feed completed audio frames from the reassembler into a bounded receiver queue
-- expose deterministic counters for malformed, duplicate, expired, and dropped data
-- test restart, discontinuity, stop, and stream-ID replacement behavior
+- feed completed frames into a bounded receiver queue
+- expose counters for malformed, duplicate, expired, rejected, and dropped data
+- preserve discontinuity and silence semantics
+- test stop, restart, timeout, wrong-stream, and queue-overflow behavior
 
-Do not add UDP sockets, WASAPI capture, Android playback, or Opus until the
-pure session-state tests pass.
+## Gate
+
+Phase 1.4 must pass native exact-state-transition and malformed-input tests under
+both Windows MSVC and Android NDK compilation.
+
+Do not add UDP sockets, WASAPI capture, Android playback, jitter-buffer timing,
+or Opus until the in-memory session-state tests pass.

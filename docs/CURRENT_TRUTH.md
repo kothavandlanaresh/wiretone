@@ -68,11 +68,18 @@ Date: 2026-07-16
 - Duplicate, inconsistent-metadata, noncanonical-size, and over-limit rejection.
 - Exact payload reconstruction and silence-frame handling.
 
-## Pending owner validation
+## Owner-validated Phase 1.3
 
-- Apply the Phase 1.3 patch on Windows.
-- Confirm all four native test executables pass under MSVC.
-- Rebuild the Android APK so audio-frame code compiles through NDK.
+- Windows environment check with direct MSVC discovery: PASS.
+- Windows CMake configure and MSVC build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- `wiretone_control_payload_tests`: PASS.
+- `wiretone_audio_frame_tests`: PASS.
+- Android NDK rebuild with the audio-frame library: PASS.
+- Git commit `e3fe9ff` is published on `phase/01-protocol`.
+- The Windows bootstrap no longer imports the complete Visual Studio environment
+  into the parent PowerShell process, avoiding cumulative `PATH` inflation.
 
 ## Not implemented
 
