@@ -223,3 +223,61 @@ Endpoint buffer: 1056 frames
 - GCC AddressSanitizer and UndefinedBehaviorSanitizer passed all six tests.
 - The container's Swift-packaged Clang sanitizer runtime crashed before `main()` for
   every executable, including unchanged Phase 1 tests; it was not used as evidence.
+
+## Phase 2.2 — Validation environment
+
+Date: 2026-07-16
+
+- Platform-neutral captured-packet view: COMPLETE
+- Float32 stereo to PCM S16LE conversion: COMPLETE
+- Exact clipping and channel-order tests: PASS
+- Silent-packet zero synthesis: PASS
+- Frame-count, flags, device-position, and QPC preservation tests: PASS
+- Unknown-flag, invalid-size, missing-data, undersized-output, and non-finite tests: PASS
+- CMake configure: PASS
+- C++ build with strict warnings: PASS
+- Existing Phase 1 and Phase 2.1 tests: PASS
+- `wiretone_captured_packet_tests`: PASS
+- Combined native tests: PASS — 7/7
+- GCC AddressSanitizer: PASS — 7/7
+- GCC UndefinedBehaviorSanitizer: PASS — 7/7
+
+### Owner-machine Phase 2.2 validation
+
+- Windows MSVC clean build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- Live WASAPI packet drain with audible content: PASS
+- Non-zero packet counter: PASS — 1 packet
+- Non-zero frame counter: PASS — 480 frames
+- Non-zero PCM-byte counter: PASS — 1,920 bytes
+- Silent packets: 0
+- Discontinuity packets: 1
+- Timestamp-error packets: 0
+- Empty polls: 1
+- Last device position: 497,177,760 frames
+- Last QPC position: 104,101,493,330 in 100 ns units
+- Final sender-shell Phase 2.2 result: PASS
+
+Observed owner-machine output:
+
+```text
+Default render endpoint: Virtual Speakers (Virtual Speakers for AudioRelay)
+Mix format: 48000 Hz, 2 channels, 32 container bits, 32 valid bits, floating_point, extensible
+Endpoint buffer: 1056 frames
+Packets drained: 1
+Frames drained: 480
+PCM bytes produced: 1920
+Silent packets: 0
+Discontinuity packets: 1
+Timestamp-error packets: 0
+Empty polls: 1
+Last device position: 497177760 frames
+Last QPC position: 104101493330 x 100 ns
+Phase 2.2 WASAPI packet drain and PCM normalization: PASS
+```

@@ -51,10 +51,51 @@ Phase 2.1 proves the Windows capture boundary only. It does not call
 `IAudioCaptureClient::GetBuffer`, drain packets, normalize samples, resample, remix,
 frame PCM, send UDP, encode Opus, or play audio on Android.
 
+## Implemented in Phase 2.2
+
+- Platform-neutral captured-packet view with frame count, flags, device position, and
+  QPC position.
+- Exact 48 kHz stereo float32 to signed 16-bit little-endian PCM conversion.
+- Deterministic clipping, silence synthesis, channel-order preservation, and malformed
+  packet rejection.
+- WASAPI `GetNextPacketSize` / `GetBuffer` / `ReleaseBuffer` drain loop.
+- Packet, frame, PCM-byte, silence, discontinuity, timestamp-error, and empty-poll
+  counters.
+- Device-invalidated and capture-call error reporting.
+- Preallocated endpoint-sized PCM scratch memory; normalized data is not retained or sent.
+- Seventh native test executable for captured-packet conversion.
+
+## Owner-validated Phase 2.2
+
+- Windows MSVC clean build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- `wiretone_control_payload_tests`: PASS.
+- `wiretone_audio_frame_tests`: PASS.
+- `wiretone_session_tests`: PASS.
+- `wiretone_capture_lifecycle_tests`: PASS.
+- `wiretone_captured_packet_tests`: PASS.
+- Live loopback packet drain while audible content used the default endpoint: PASS.
+- Captured packets: 1.
+- Captured frames: 480.
+- Normalized PCM bytes: 1,920.
+- Silent packets: 0.
+- Discontinuity packets: 1.
+- Timestamp-error packets: 0.
+- Empty polls: 1.
+- Last device position: 497,177,760 frames.
+- Last QPC position: 104,101,493,330 in 100 ns units.
+- Normalized audio remained in bounded scratch memory and was not retained or sent.
+
+## Explicit Phase 2.2 limit
+
+Phase 2.2 converts each WASAPI packet independently into bounded scratch memory. It
+does not assemble a continuous stream into 960-frame / 20 ms logical PCM frames and
+does not retain audio after each packet is counted.
+
 ## Not implemented
 
-- captured-packet draining and timestamps
-- 48 kHz stereo PCM normalization
+- continuous 20 ms PCM frame assembly
 - WASAPI device-change recovery
 - UDP socket transport
 - Android audio output

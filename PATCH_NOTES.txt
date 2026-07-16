@@ -1,30 +1,36 @@
-WireTone Phase 2.1 — owner-validated WASAPI loopback boundary
+WireTone Phase 2.2 — owner-validated packet draining and PCM normalization
 
 Included:
-- platform-neutral capture lifecycle library and sixth native test
-- default Windows render-endpoint discovery
-- endpoint friendly-name and ID reporting
-- shared-mode mix-format inspection
-- WASAPI loopback initialization
-- IAudioCaptureClient acquisition
-- endpoint-buffer frame reporting
-- clean stream start and stop probe
-- sender-shell integration output
-- Windows SDK property-key include-order correction
-- Phase 2.1 architecture, decision, truth, action, and test documentation
+- platform-neutral captured-packet metadata contract
+- exact 48 kHz stereo float32 to signed 16-bit little-endian PCM conversion
+- deterministic clipping, silence, channel-order, flag, timestamp, and malformed-input tests
+- seventh native test executable
+- same-thread WASAPI GetNextPacketSize/GetBuffer/ReleaseBuffer drain loop
+- packet, frame, PCM-byte, silence, discontinuity, timestamp-error, empty-poll,
+  device-position, and QPC counters
+- device-invalidated and packet-conversion diagnostics
+- preallocated endpoint-sized PCM scratch buffer
 
 Owner validation:
 - Windows MSVC clean build: PASS
-- all six native tests: PASS
-- live default-endpoint probe: PASS
-- loopback start and stop: PASS
-- observed format: 48 kHz stereo 32-bit floating-point extensible
-- observed endpoint buffer: 1,056 frames
+- all seven native tests: PASS
+- live loopback packet drain: PASS
+- packets drained: 1
+- frames drained: 480
+- PCM bytes produced: 1,920
+- silent packets: 0
+- discontinuity packets: 1
+- timestamp-error packets: 0
+- empty polls: 1
+- device position: 497,177,760 frames
+- QPC position: 104,101,493,330 in 100 ns units
 
 Excluded:
-- IAudioCaptureClient packet draining
-- sample conversion, resampling, or channel remixing
+- continuous 960-frame / 20 ms PCM frame assembly
+- retained audio queues or files
+- resampling and channel remixing
 - UDP transport
 - Android playback
 - jitter buffering
 - Opus
+- discovery, pairing, and encryption
