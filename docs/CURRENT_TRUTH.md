@@ -93,10 +93,49 @@ Phase 2.2 converts each WASAPI packet independently into bounded scratch memory.
 does not assemble a continuous stream into 960-frame / 20 ms logical PCM frames and
 does not retain audio after each packet is counted.
 
+## Implemented in Phase 2.3
+
+- Platform-neutral exact 960-frame / 20 ms PCM frame assembler.
+- Fixed 3,840-byte internal storage with no steady-state allocation.
+- Synchronous non-owning completed-frame callback.
+- Split, exact, and combined packet handling.
+- Monotonic completed-frame sequence numbers.
+- Device-position and QPC timestamp propagation from the first frame sample.
+- Discontinuity-driven partial discard and first-completed-frame marking.
+- Whole-frame silence and timestamp-error propagation.
+- Deterministic reset of partial state and sequence numbering.
+- Windows sender counters for completed and flagged logical PCM frames.
+- Pure native frame-assembler tests.
+
+## Owner-validated Phase 2.3
+
+- Windows MSVC clean build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- `wiretone_control_payload_tests`: PASS.
+- `wiretone_audio_frame_tests`: PASS.
+- `wiretone_session_tests`: PASS.
+- `wiretone_capture_lifecycle_tests`: PASS.
+- `wiretone_captured_packet_tests`: PASS.
+- `wiretone_pcm_frame_assembler_tests`: PASS.
+- Live exact 960-frame / 20 ms PCM assembly: PASS.
+- Captured packets: 3.
+- Captured frames: 1,440.
+- Normalized PCM bytes: 5,760.
+- Completed PCM frames: 1.
+- Silent PCM frames: 0.
+- Discontinuity PCM frames: 1.
+- Timestamp-error PCM frames: 0.
+- Dropped partial PCM frames: 1.
+- Last completed PCM sequence: 1.
+- Last completed device position: 556,498,080 frames.
+- Last completed QPC position: 116,459,893,447 in 100 ns units.
+- Completed PCM remained local in memory and was not retained or sent.
+
 ## Not implemented
 
-- continuous 20 ms PCM frame assembly
-- WASAPI device-change recovery
+- retained PCM queues, files, or transport handoff
+- WASAPI default-device invalidation and restart recovery
 - UDP socket transport
 - Android audio output
 - jitter buffering

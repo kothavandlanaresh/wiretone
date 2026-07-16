@@ -281,3 +281,80 @@ Last device position: 497177760 frames
 Last QPC position: 104101493330 x 100 ns
 Phase 2.2 WASAPI packet drain and PCM normalization: PASS
 ```
+
+
+## Phase 2.3 — Validation environment
+
+Date: 2026-07-16
+
+- Exact 960-frame PCM assembler implementation: COMPLETE
+- Fixed allocation-free frame storage: COMPLETE
+- Split-packet assembly tests: PASS
+- Exact-packet assembly tests: PASS
+- Combined multi-frame packet tests: PASS
+- Discontinuity partial-discard tests: PASS
+- Silence and timestamp-error propagation tests: PASS
+- Reset and malformed-input tests: PASS
+- CMake configure: PASS
+- C++ build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- `wiretone_pcm_frame_assembler_tests`: PASS
+- GCC AddressSanitizer: PASS
+- GCC UndefinedBehaviorSanitizer: PASS
+
+### Owner-machine Phase 2.3 validation
+
+- Windows MSVC clean build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- `wiretone_captured_packet_tests`: PASS
+- `wiretone_pcm_frame_assembler_tests`: PASS
+- Live completed 960-frame PCM frame: PASS
+- Packets drained: 3
+- Frames drained: 1,440
+- PCM bytes produced: 5,760
+- Completed 20 ms PCM frames: 1
+- Silent PCM frames: 0
+- Discontinuity PCM frames: 1
+- Timestamp-error PCM frames: 0
+- Dropped partial PCM frames: 1
+- Last completed PCM sequence: 1
+- Last completed device position: 556,498,080 frames
+- Last completed QPC position: 116,459,893,447 in 100 ns units
+- Final sender-shell Phase 2.3 result: PASS
+
+Observed owner-machine output:
+
+```text
+Default render endpoint: Virtual Speakers (Virtual Speakers for AudioRelay)
+Mix format: 48000 Hz, 2 channels, 32 container bits, 32 valid bits, floating_point, extensible
+Endpoint buffer: 1056 frames
+Packets drained: 3
+Frames drained: 1440
+PCM bytes produced: 5760
+Silent packets: 0
+Discontinuity packets: 1
+Timestamp-error packets: 0
+Empty polls: 1
+Last device position: 556499040 frames
+Last QPC position: 116460103103 x 100 ns
+Completed 20 ms PCM frames: 1
+Silent PCM frames: 0
+Discontinuity PCM frames: 1
+Timestamp-error PCM frames: 0
+Dropped partial PCM frames: 1
+Last completed PCM sequence: 1
+Last completed device position: 556498080 frames
+Last completed QPC position: 116459893447 x 100 ns
+Phase 2.3 exact 20 ms PCM frame assembly: PASS
+```

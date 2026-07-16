@@ -1,33 +1,39 @@
-WireTone Phase 2.2 — owner-validated packet draining and PCM normalization
+WireTone Phase 2.3 — owner-validated exact 20 ms PCM frame assembly
 
 Included:
-- platform-neutral captured-packet metadata contract
-- exact 48 kHz stereo float32 to signed 16-bit little-endian PCM conversion
-- deterministic clipping, silence, channel-order, flag, timestamp, and malformed-input tests
-- seventh native test executable
-- same-thread WASAPI GetNextPacketSize/GetBuffer/ReleaseBuffer drain loop
-- packet, frame, PCM-byte, silence, discontinuity, timestamp-error, empty-poll,
-  device-position, and QPC counters
-- device-invalidated and packet-conversion diagnostics
-- preallocated endpoint-sized PCM scratch buffer
+- exact 960-frame / 3,840-byte stereo PCM logical frames
+- allocation-free fixed frame storage after construction
+- synchronous non-owning completed-frame callback
+- split-packet, exact-packet, and multi-frame packet handling
+- monotonically increasing completed-frame sequence numbers
+- device-position and QPC timestamp propagation from each frame's first sample
+- discontinuity-driven partial-frame discard and first-frame marking
+- silence marking only when every contributing capture region is silent
+- timestamp-error propagation across contributing packets
+- deterministic reset of partial data and frame sequence
+- eighth native test executable
+- live sender counters for completed, silent, discontinuous, timestamp-error, and
+  dropped-partial PCM frames
 
 Owner validation:
 - Windows MSVC clean build: PASS
-- all seven native tests: PASS
-- live loopback packet drain: PASS
-- packets drained: 1
-- frames drained: 480
-- PCM bytes produced: 1,920
-- silent packets: 0
-- discontinuity packets: 1
-- timestamp-error packets: 0
-- empty polls: 1
-- device position: 497,177,760 frames
-- QPC position: 104,101,493,330 in 100 ns units
+- all eight native tests: PASS
+- live exact 960-frame PCM assembly: PASS
+- packets drained: 3
+- frames drained: 1,440
+- PCM bytes produced: 5,760
+- completed 20 ms PCM frames: 1
+- silent PCM frames: 0
+- discontinuity PCM frames: 1
+- timestamp-error PCM frames: 0
+- dropped partial PCM frames: 1
+- last completed PCM sequence: 1
+- last completed device position: 556,498,080 frames
+- last completed QPC position: 116,459,893,447 in 100 ns units
 
 Excluded:
-- continuous 960-frame / 20 ms PCM frame assembly
-- retained audio queues or files
+- retained PCM queues or files
+- default-device invalidation recovery
 - resampling and channel remixing
 - UDP transport
 - Android playback
