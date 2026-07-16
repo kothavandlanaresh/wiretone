@@ -93,11 +93,26 @@ Date: 2026-07-16
   expired, completed, dropped, discontinuity, and lifecycle events.
 - Pure native session-state tests.
 
-## Pending owner validation
+## Owner-validated Phase 1.4
 
-- Apply the Phase 1.4 patch on Windows.
-- Confirm all five native test executables pass under MSVC.
-- Rebuild the Android APK so the session code compiles through NDK.
+- Android NDK rebuild with the receiver-session library: PASS.
+- Windows clean CMake x64 configure and MSVC build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- `wiretone_control_payload_tests`: PASS.
+- `wiretone_audio_frame_tests`: PASS.
+- `wiretone_session_tests`: PASS.
+- Git commit `2c6d7a7` is published on `phase/01-protocol`.
+- The premature `phase-1.4-pass` tag was removed before final Windows validation.
+- Windows bootstrap clean-first hardening prevents preserved ZIP timestamps from
+  reusing stale native objects.
+
+## Phase 1 completion
+
+- Version-1 packet, control-payload, fragmentation, reassembly, and receiver-session
+  contracts are locked and owner-validated on Windows and Android.
+- The final Phase 1 checkpoint is the annotated `phase-1.4-pass` tag.
+- Phase 2 begins with Windows WASAPI loopback capture on a new workstream branch.
 
 ## Not implemented
 

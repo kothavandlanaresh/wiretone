@@ -1,30 +1,31 @@
 # Next Actions
 
-## Phase 1.4 — Validate in-memory receiver session state
+## Phase 2.1 — Windows capture boundary
 
-1. Stay on branch `phase/01-protocol`.
-2. Apply the Phase 1.4 session-state patch.
-3. Run `scripts/bootstrap-windows.ps1`.
-4. Confirm all five native tests pass:
-   - `wiretone_core_tests`
-   - `wiretone_protocol_tests`
-   - `wiretone_control_payload_tests`
-   - `wiretone_audio_frame_tests`
-   - `wiretone_session_tests`
-5. Clear Android `.cxx` and `app/build` output.
-6. Run `scripts/bootstrap-android.ps1`.
-7. Confirm the Android APK and JNI library compile with the session sources.
-8. Record owner-machine results, commit, push, and tag Phase 1.4.
+Create the next workstream branch from the validated Phase 1 checkpoint:
 
-## Phase 2 — After Phase 1.4 passes
+```powershell
+Set-Location "$HOME\source\wiretone"
+git switch -c "phase/02-windows-capture"
+git push -u origin "phase/02-windows-capture"
+```
 
-Begin Windows audio capture with a testable WASAPI loopback boundary:
+Implement a testable Windows WASAPI loopback capture boundary:
 
-- enumerate and select the default render endpoint
+- enumerate the default render endpoint
 - open shared-mode loopback capture
-- normalize captured samples into the locked 48 kHz stereo PCM contract
-- surface silence, discontinuity, device-change, and error events
-- test conversion and capture-state logic separately from UDP transport
+- keep COM and WASAPI ownership inside the Windows sender layer
+- normalize capture output into the locked 48 kHz stereo PCM contract
+- surface silence, discontinuity, device-change, and recoverable-error events
+- separate sample conversion tests from live device integration tests
+- preserve the protocol library as a platform-independent dependency
 
-Do not add UDP transport, Android playback, or Opus during the initial Phase 2
-capture increment.
+## Phase 2.1 validation gate
+
+- native unit tests for sample-format normalization and capture-state transitions
+- Windows integration check against the current default render endpoint
+- sender shell can start capture, report format/device details, and stop cleanly
+- no protocol regression across the existing five native test executables
+
+Do not add UDP transport, Android playback, jitter-buffer timing, or Opus during
+the initial Phase 2 capture increment.

@@ -21,7 +21,7 @@ No cloud account, telemetry, advertising, or remote relay is part of V1.
 
 ## Current phase
 
-**Phase 1 — Protocol contract**
+**Phase 1 — Protocol contract complete**
 
 The repository currently contains:
 
@@ -36,7 +36,9 @@ The repository currently contains:
 - a JNI bridge that compiles and loads the shared C++ libraries
 - project governance and decision documents
 
-No UDP sockets, audio capture, codec implementation, jitter buffer, or playback code exists yet.
+The next implementation phase is Windows WASAPI loopback capture. No UDP sockets,
+codec implementation, jitter buffer, Android playback, discovery, pairing, or
+encryption exists yet.
 
 ## Build native foundation on Windows
 
@@ -45,7 +47,7 @@ Open **Developer PowerShell for Visual Studio** and run:
 ```powershell
 Set-Location C:\Path\To\wiretone
 cmake -S . -B out\build\windows -DWIRETONE_BUILD_TESTS=ON
-cmake --build out\build\windows --config Debug
+cmake --build out\build\windows --config Debug --clean-first
 ctest --test-dir out\build\windows -C Debug --output-on-failure
 ```
 

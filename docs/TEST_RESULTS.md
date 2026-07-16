@@ -152,5 +152,21 @@ Date: 2026-07-16
 
 ### Owner-machine Phase 1.4 validation
 
-- MSVC build and all five native tests: PENDING
-- Android NDK rebuild with session library: PENDING
+- Android NDK rebuild with session library: PASS
+- Initial incremental Windows link exposed a stale pre-Phase-1.4 object: OBSERVED
+- Premature `phase-1.4-pass` tag removed before final Windows validation: PASS
+- Clean CMake x64 configuration: PASS
+- Clean MSVC build of all protocol sources: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- Commit `2c6d7a7` pushed to `phase/01-protocol`: PASS
+
+### Windows clean-build hardening
+
+- Root cause: ZIP extraction preserved source timestamps older than existing object files.
+- `AudioFrameReassembler::reset()` declaration and definition were both present in source.
+- Removing `out/build/windows` forced the correct rebuild and resolved the link error.
+- `scripts/bootstrap-windows.ps1` now uses CMake `--clean-first`: PASS

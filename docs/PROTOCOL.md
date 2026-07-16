@@ -1,7 +1,7 @@
 # WireTone Protocol
 
 **Protocol version:** 1
-**Status:** Phase 1.3 packet, control-payload, and audio-fragment contract locked
+**Status:** Phase 1 version-1 protocol and receiver-session contract locked
 **Transport:** UDP on the local network
 **Byte order:** Network byte order (big-endian) for every multi-byte integer in
 WireTone headers and control payloads
