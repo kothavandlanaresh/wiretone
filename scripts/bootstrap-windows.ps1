@@ -58,8 +58,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "CMake configuration failed."
 }
 
-Write-Host "Building WireTone ($Configuration)"
-& $cmake --build $BuildDirectory --config $Configuration
+Write-Host "Building WireTone ($Configuration) with a clean native target rebuild"
+& $cmake `
+    --build $BuildDirectory `
+    --config $Configuration `
+    --clean-first
+
 if ($LASTEXITCODE -ne 0) {
     throw "Native build failed."
 }

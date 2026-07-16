@@ -1,21 +1,15 @@
-WireTone Phase 1.4 — in-memory receiver session state
+WireTone Phase 1.4.1 — Phase 1 finalization
 
-Adds a pure C++ receiver session boundary around the locked Phase 1 packet,
-control-payload, fragmentation, and reassembly contracts.
+Finalizes the owner-validated Phase 1 protocol work.
 
 Included:
-- idle/streaming lifecycle
-- stream-start requirement and stream-ID enforcement
-- deterministic replacement, stop, reset, and liveness timeout
-- fixed eight-frame completed-audio queue
-- oldest-frame drop on overflow
-- discontinuity flushing
-- deterministic diagnostics counters
-- fifth native test executable
+- records successful Windows MSVC 5/5 native test validation
+- records successful Android NDK session-library build
+- marks the version-1 packet, control, fragmentation, reassembly, and receiver
+  session contracts complete
+- advances NEXT_ACTIONS to Phase 2.1 Windows WASAPI loopback capture
+- hardens the Windows bootstrap with CMake --clean-first so preserved archive
+  timestamps cannot silently reuse stale native object files
 
-Excluded:
-- UDP sockets
-- WASAPI capture
-- Android playback
-- jitter-buffer timing
-- Opus
+No protocol semantics, session behavior, Android UI, networking, capture,
+playback, jitter-buffer, or codec implementation changes are included.
