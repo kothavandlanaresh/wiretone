@@ -119,31 +119,28 @@ function Get-WireToneVisualStudioInfo {
         )
 
         if (-not [string]::IsNullOrWhiteSpace($installationPath)) {
-            $vsDevCmd = Join-Path $installationPath "Common7\Tools\VsDevCmd.bat"
-            if (Test-Path $vsDevCmd) {
-                return [pscustomobject]@{
-                    InstallationPath = $installationPath
-                    VsDevCmd         = $vsDevCmd
-                    VsWhere          = $vsWhere
-                }
+            return [pscustomobject]@{
+                InstallationPath = $installationPath
+                VsWhere          = $vsWhere
             }
         }
     }
 
     $patterns = @(
-        (Join-Path $env:ProgramFiles "Microsoft Visual Studio\18\*\Common7\Tools\VsDevCmd.bat"),
-        (Join-Path $env:ProgramFiles "Microsoft Visual Studio\2022\*\Common7\Tools\VsDevCmd.bat")
+        (Join-Path $env:ProgramFiles "Microsoft Visual Studio\18\*"),
+        (Join-Path $env:ProgramFiles "Microsoft Visual Studio\2022\*")
     )
 
     foreach ($pattern in $patterns) {
-        $match = Get-ChildItem -Path $pattern -File -ErrorAction SilentlyContinue |
+        $match = Get-ChildItem -Path $pattern -Directory -ErrorAction SilentlyContinue |
+            Where-Object {
+                Test-Path (Join-Path $_.FullName "VC\Tools\MSVC")
+            } |
             Select-Object -First 1
 
         if ($null -ne $match) {
-            $installationPath = Split-Path (Split-Path (Split-Path $match.FullName -Parent) -Parent) -Parent
             return [pscustomobject]@{
-                InstallationPath = $installationPath
-                VsDevCmd         = $match.FullName
+                InstallationPath = $match.FullName
                 VsWhere          = $vsWhere
             }
         }
@@ -152,33 +149,32 @@ function Get-WireToneVisualStudioInfo {
     return $null
 }
 
-function Import-WireToneVisualStudioEnvironment {
+function Get-WireToneMsvcCompilerPath {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$VsDevCmd
+        [string]$VisualStudioInstallationPath
     )
 
-    if (-not (Test-Path $VsDevCmd)) {
-        throw "Visual Studio developer environment script was not found: $VsDevCmd"
+    if ([string]::IsNullOrWhiteSpace($VisualStudioInstallationPath)) {
+        return $null
     }
 
-    $command = "`"$VsDevCmd`" -no_logo -arch=x64 -host_arch=x64 >nul && set"
-    $environmentLines = & $env:ComSpec /d /s /c $command
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Visual Studio developer environment initialization failed."
+    $toolsetsRoot = Join-Path $VisualStudioInstallationPath "VC\Tools\MSVC"
+    if (-not (Test-Path $toolsetsRoot)) {
+        return $null
     }
 
-    foreach ($line in $environmentLines) {
-        if ($line -match '^([^=]+)=(.*)$') {
-            [Environment]::SetEnvironmentVariable(
-                $Matches[1],
-                $Matches[2],
-                [EnvironmentVariableTarget]::Process
-            )
+    $toolsets = Get-ChildItem -Path $toolsetsRoot -Directory -ErrorAction SilentlyContinue |
+        Sort-Object -Property Name -Descending
+
+    foreach ($toolset in $toolsets) {
+        $compiler = Join-Path $toolset.FullName "bin\Hostx64\x64\cl.exe"
+        if (Test-Path $compiler) {
+            return $compiler
         }
     }
+
+    return $null
 }
 
 function Get-WireToneCMakePath {

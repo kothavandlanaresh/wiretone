@@ -47,13 +47,14 @@ if ($null -eq $visualStudio) {
     Write-Missing "Visual Studio or Build Tools with the Desktop development with C++ workload was not found."
 } else {
     Write-Found -Name "visual-studio" -Value $visualStudio.InstallationPath
-    Import-WireToneVisualStudioEnvironment -VsDevCmd $visualStudio.VsDevCmd
 
-    $cl = Get-Command "cl.exe" -ErrorAction SilentlyContinue
-    if ($null -eq $cl) {
-        Write-Missing "Visual Studio was found, but the x64 MSVC compiler could not be activated."
+    $cl = Get-WireToneMsvcCompilerPath `
+        -VisualStudioInstallationPath $visualStudio.InstallationPath
+
+    if ([string]::IsNullOrWhiteSpace($cl)) {
+        Write-Missing "Visual Studio was found, but an x64 MSVC compiler was not found."
     } else {
-        Write-Found -Name "cl.exe" -Value $cl.Source
+        Write-Found -Name "cl.exe" -Value $cl
     }
 }
 

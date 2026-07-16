@@ -1,23 +1,25 @@
-WireTone Phase 1.1 — Packet envelope and protocol contract
+WireTone Phase 1.3.1 — Windows bootstrap PATH-length fix
 
-Adds:
-- fixed 32-byte version-1 packet header;
-- strict big-endian encoder/parser;
-- 1,200-byte datagram and 1,168-byte payload limits;
-- packet types, flags, stream/sequence/timestamp/frame/fragment fields;
-- exact-byte, round-trip, and malformed-packet tests;
-- complete initial protocol specification;
-- Android NDK compilation of the shared protocol library;
-- Phase 0 owner-machine results and Phase 1 decisions in project docs.
+Problem
+-------
+The old bootstrap called VsDevCmd.bat and imported every resulting environment
+variable into the current PowerShell process. Repeated runs could inflate PATH
+until cmd.exe hit its legacy command-line limit and returned:
 
-This patch intentionally does not add UDP sockets, WASAPI capture, Android audio
-playback, jitter buffering, or Opus.
+    The input line is too long.
 
-Before applying:
-1. Commit the completed Phase 0 foundation.
-2. Create or switch to branch phase/01-protocol.
+Fix
+---
+- Discover cl.exe directly from the installed MSVC toolset.
+- Stop importing the Visual Studio developer environment into the parent shell.
+- Let CMake's Visual Studio generator locate and drive MSBuild directly.
+- Configure the Windows build explicitly for x64.
 
-After applying:
-1. Run scripts/bootstrap-windows.ps1.
-2. Confirm both native tests pass.
-3. Run scripts/bootstrap-android.ps1.
+Scope
+-----
+Build scripts only. No protocol, audio-frame, Android, or runtime code changes.
+
+Apply this archive over the repository root, then rerun:
+
+    .\scripts\check-environment.ps1
+    .\scripts\bootstrap-windows.ps1

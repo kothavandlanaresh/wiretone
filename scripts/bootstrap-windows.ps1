@@ -21,11 +21,11 @@ if ($null -eq $visualStudio) {
 }
 
 Write-Host "Using Visual Studio: $($visualStudio.InstallationPath)"
-Import-WireToneVisualStudioEnvironment -VsDevCmd $visualStudio.VsDevCmd
 
-$cl = Get-Command "cl.exe" -ErrorAction SilentlyContinue
-if ($null -eq $cl) {
-    throw "The x64 MSVC compiler could not be activated."
+$cl = Get-WireToneMsvcCompilerPath `
+    -VisualStudioInstallationPath $visualStudio.InstallationPath
+if ([string]::IsNullOrWhiteSpace($cl)) {
+    throw "The x64 MSVC compiler was not found."
 }
 
 $cmake = Get-WireToneCMakePath -VisualStudioInstallationPath $visualStudio.InstallationPath
@@ -44,13 +44,14 @@ if (-not (Test-Path $ctest)) {
 
 $BuildDirectory = Join-Path $RepoRoot "out\build\windows"
 
-Write-Host "Compiler: $($cl.Source)"
+Write-Host "Compiler: $cl"
 Write-Host "CMake: $cmake"
 Write-Host "Configuring WireTone in $BuildDirectory"
 
 & $cmake `
     -S $RepoRoot `
     -B $BuildDirectory `
+    -A x64 `
     -DWIRETONE_BUILD_TESTS=ON
 
 if ($LASTEXITCODE -ne 0) {
