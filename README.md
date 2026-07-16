@@ -23,19 +23,19 @@ No cloud account, telemetry, advertising, or remote relay is part of V1.
 
 **Phase 3 — Android output in progress**
 
-Phases 1 and 2 are complete and owner-validated. The repository now contains:
+Phases 1 and 2 are complete and owner-validated. Phase 3.1 is tagged and validates the
+Pixel 9a AAudio boundary. Phase 3.2 adds:
 
-- the versioned packet/control protocol and bounded receiver session
-- Windows WASAPI loopback capture, PCM normalization, exact 20 ms framing, and recovery
-- a platform-neutral playback lifecycle
-- an Android NDK AAudio output owner in callback mode
-- requested 48 kHz stereo signed 16-bit PCM, shared output, and low-latency performance
-- negotiated stream-property and callback/underrun/disconnect counters
-- a thin Kotlin UI and JNI surface for open, start, stop, close, and status
+- a fixed-capacity platform-neutral SPSC PCM playback queue
+- exact 960-frame / 20 ms stereo signed 16-bit logical frames
+- callback-sized partial reads with FIFO sequence metadata
+- drop-newest overflow and exact empty-queue silence policies
+- queue, silence-fill, underrun, drop, discard, and sequence counters
+- a bounded Android-local native test tone for Pixel validation
 
-Phase 3.1 renders silence only. It proves native Android output negotiation and lifecycle
-without introducing network transport, PCM queues, jitter buffering, Opus, discovery,
-pairing, or encryption. The first Windows-to-Android PCM path remains Phase 4.
+The queue remains local to the Android process. Windows PCM handoff, UDP, jitter buffering,
+Opus, discovery, pairing, foreground service, and encryption are not part of Phase 3.2.
+The first Windows-to-Android PCM path remains Phase 4.
 
 ## Build and test on Windows
 
@@ -58,7 +58,7 @@ Set-Location C:\Path\To\wiretone
 Open `apps/android-receiver` in Android Studio. Install the SDK, NDK, CMake, and LLDB
 components requested by the project, then run the `app` configuration on the Pixel 9a.
 
-The screen opens the AAudio stream, reports negotiated properties, and provides controls to start and stop silence rendering. Callback and rendered-frame counters should become non-zero while running.
+The screen opens the AAudio stream, reports negotiated properties, and provides controls for a bounded local test tone, silence output, and stop. Queue and callback counters update while running.
 
 ## Documents
 

@@ -6,7 +6,9 @@ target_sources(
     wiretone_playback
     PRIVATE
         src/lifecycle.cpp
+        src/pcm_queue.cpp
         include/wiretone/playback/lifecycle.hpp
+        include/wiretone/playback/pcm_queue.hpp
 )
 
 target_include_directories(

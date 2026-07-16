@@ -185,3 +185,15 @@ keeps the callback limited to zero-fill plus atomic counters.
 and underrun visibility must be proven on the Pixel before network timing or PCM queue
 behavior is introduced. The real-time callback cannot allocate, lock, log, call JNI, or
 perform blocking work.
+
+## D-016 — Phase 3.2 playback queue is fixed-capacity SPSC with drop-newest overflow
+
+The playback queue has one producer and the AAudio callback as its one consumer. It stores
+thirty-two complete 960-frame stereo PCM16 logical frames in fixed memory. The producer drops
+the newest frame when full instead of overwriting audio already committed to playback. The
+callback may consume any positive frame count, crosses logical-frame boundaries without copying
+or allocating outside fixed storage, and zero-fills unmet demand. Stop waits for AAudio to leave
+the running state before queued and partially consumed data are discarded.
+
+Rationale: this gives deterministic real-time behavior and visible loss/starvation counters while
+keeping transport timing, jitter policy, and network ownership out of Phase 3.

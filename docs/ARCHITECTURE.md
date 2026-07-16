@@ -48,15 +48,19 @@ after a successful restart is marked discontinuous.
 
 ### `native/playback`
 
-Owns platform-neutral playback lifecycle states and transition rules. It contains no
-Android headers and remains testable on Windows and Linux.
+Owns platform-neutral playback lifecycle states, transition rules, and the fixed-capacity
+SPSC PCM playback queue. The queue accepts exact 960-frame stereo PCM16 logical frames,
+preserves sequence/discontinuity metadata, uses a drop-newest overflow policy, and zero-fills
+callback demand when empty. This layer contains no Android headers and remains testable on
+Windows and Linux.
 
 ### Android native layer
 
 Owns AAudio stream construction, negotiated-property inspection, callback rendering,
 error/disconnect signaling, receive-side packet processing, jitter management, decoding,
-and performance-sensitive audio state. Phase 3.1 implements only the AAudio boundary and
-renders silence. The callback performs no allocation, locking, logging, JNI, or blocking work.
+and performance-sensitive audio state. Phase 3.2 connects the native SPSC queue to the
+AAudio callback and provides a bounded local test producer. The callback performs no allocation,
+locking, logging, JNI, sleeping, or blocking work.
 
 ### Android Kotlin layer
 

@@ -1,13 +1,13 @@
 #pragma once
 
 #include "wiretone/playback/lifecycle.hpp"
+#include "wiretone/playback/pcm_queue.hpp"
 
 #include <aaudio/AAudio.h>
 
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <string>
 #include <string_view>
 
 namespace wiretone::android {
@@ -18,8 +18,11 @@ enum class AndroidAudioOutputError {
     builder_creation_failed,
     stream_open_failed,
     unsupported_callback_format,
+    unsupported_playback_contract,
     stream_start_failed,
     stream_stop_failed,
+    stream_stop_timeout,
+    local_test_queue_failed,
     callback_failed,
     stream_disconnected,
 };
@@ -27,6 +30,8 @@ enum class AndroidAudioOutputError {
 struct AndroidAudioOutputSnapshot {
     playback::PlaybackState state{playback::PlaybackState::idle};
     AndroidAudioOutputError error{AndroidAudioOutputError::none};
+    playback::PcmPlaybackQueueError queue_error{
+        playback::PcmPlaybackQueueError::none};
     std::int32_t native_result{AAUDIO_OK};
     std::int32_t sample_rate{0};
     std::int32_t channel_count{0};
@@ -42,6 +47,9 @@ struct AndroidAudioOutputSnapshot {
     std::uint64_t rendered_frames{0};
     std::uint64_t disconnect_events{0};
     std::int32_t underrun_count{0};
+    playback::PcmPlaybackQueueSnapshot queue{};
+    std::uint64_t local_test_batches{0};
+    std::uint64_t local_test_logical_frames{0};
 };
 
 class AndroidAudioOutput {
@@ -57,6 +65,8 @@ public:
     [[nodiscard]] bool open() noexcept;
     [[nodiscard]] bool start() noexcept;
     [[nodiscard]] bool stop() noexcept;
+    [[nodiscard]] bool queue_local_test_signal() noexcept;
+    void clear_queue() noexcept;
     void close() noexcept;
 
     [[nodiscard]] AndroidAudioOutputSnapshot snapshot() const noexcept;
@@ -72,12 +82,20 @@ private:
         void* user_data,
         aaudio_result_t error) noexcept;
 
-    [[nodiscard]] bool fail(AndroidAudioOutputError error, aaudio_result_t result) noexcept;
+    [[nodiscard]] bool wait_for_stopped() noexcept;
+    [[nodiscard]] bool fail(
+        AndroidAudioOutputError error,
+        aaudio_result_t result,
+        playback::PcmPlaybackQueueError queue_error =
+            playback::PcmPlaybackQueueError::none) noexcept;
     void synchronize_async_error() noexcept;
     void clear_error() noexcept;
 
     playback::PlaybackLifecycle lifecycle_{};
+    playback::PcmPlaybackQueue queue_{};
     AndroidAudioOutputError error_{AndroidAudioOutputError::none};
+    std::atomic<playback::PcmPlaybackQueueError> queue_error_{
+        playback::PcmPlaybackQueueError::none};
     aaudio_result_t native_result_{AAUDIO_OK};
     AAudioStream* stream_{nullptr};
     std::int32_t sample_rate_{0};
@@ -89,8 +107,10 @@ private:
     std::int32_t buffer_capacity_frames_{0};
     std::int32_t buffer_size_frames_{0};
     std::int32_t device_id_{AAUDIO_UNSPECIFIED};
-    std::size_t callback_bytes_per_frame_{0};
     bool requested_contract_granted_{false};
+    std::uint64_t next_local_test_sequence_{1};
+    std::uint64_t local_test_batches_{0};
+    std::uint64_t local_test_logical_frames_{0};
     std::atomic<std::uint64_t> callback_count_{0};
     std::atomic<std::uint64_t> rendered_frames_{0};
     std::atomic<std::uint64_t> disconnect_events_{0};

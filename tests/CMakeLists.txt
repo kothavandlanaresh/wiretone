@@ -1,3 +1,5 @@
+find_package(Threads REQUIRED)
+
 add_executable(wiretone_core_tests core_tests.cpp)
 
 target_link_libraries(wiretone_core_tests PRIVATE WireTone::Core)
@@ -78,3 +80,16 @@ target_compile_features(wiretone_playback_lifecycle_tests PRIVATE cxx_std_20)
 wiretone_enable_warnings(wiretone_playback_lifecycle_tests)
 
 add_test(NAME wiretone_playback_lifecycle_tests COMMAND wiretone_playback_lifecycle_tests)
+
+add_executable(wiretone_pcm_playback_queue_tests pcm_playback_queue_tests.cpp)
+
+target_link_libraries(
+    wiretone_pcm_playback_queue_tests
+    PRIVATE
+        WireTone::Playback
+        Threads::Threads
+)
+target_compile_features(wiretone_pcm_playback_queue_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_pcm_playback_queue_tests)
+
+add_test(NAME wiretone_pcm_playback_queue_tests COMMAND wiretone_pcm_playback_queue_tests)

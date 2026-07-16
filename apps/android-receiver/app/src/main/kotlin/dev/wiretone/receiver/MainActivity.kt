@@ -5,7 +5,6 @@ import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
@@ -23,6 +22,8 @@ class MainActivity : Activity() {
     private external fun nativeOpenPlayback(): Boolean
     private external fun nativeStartPlayback(): Boolean
     private external fun nativeStopPlayback(): Boolean
+    private external fun nativeQueueLocalTestSignal(): Boolean
+    private external fun nativeClearPlaybackQueue()
     private external fun nativeClosePlayback()
     private external fun nativePlaybackStatus(): String
 
@@ -45,7 +46,19 @@ class MainActivity : Activity() {
             setPadding(32, 32, 32, 32)
         }
 
-        val startButton = Button(this).apply {
+        val playTestButton = Button(this).apply {
+            text = getString(R.string.play_local_test_signal)
+            setOnClickListener {
+                nativeStopPlayback()
+                nativeClearPlaybackQueue()
+                if (nativeQueueLocalTestSignal()) {
+                    nativeStartPlayback()
+                }
+                refreshStatus()
+            }
+        }
+
+        val startSilenceButton = Button(this).apply {
             text = getString(R.string.start_silence_output)
             setOnClickListener {
                 nativeStartPlayback()
@@ -62,15 +75,27 @@ class MainActivity : Activity() {
         }
 
         val controls = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            orientation = LinearLayout.VERTICAL
             addView(
-                startButton,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                playTestButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+            addView(
+                startSilenceButton,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
             )
             addView(
                 stopButton,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
             )
         }
 
@@ -133,7 +158,7 @@ class MainActivity : Activity() {
             append(nativeVersion())
             append("\n\n")
             append(nativePlaybackStatus())
-            append("\n\nPhase 3.1 renders silence only. Network audio is not connected.")
+            append("\n\nPhase 3.2 uses only a bounded Android-local PCM queue. Network audio is not connected.")
         }
     }
 }
