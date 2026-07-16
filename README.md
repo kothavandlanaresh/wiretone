@@ -27,15 +27,17 @@ Phase 1 is complete and owner-validated. The repository now contains:
 
 - a shared version-1 packet and control-payload contract
 - bounded audio fragmentation, reassembly, and receiver-session state
-- a platform-neutral capture lifecycle contract
-- a Windows WASAPI loopback probe for the default render endpoint
-- shared-mode mix-format, endpoint, buffer, and start/stop reporting
-- native protocol and capture-lifecycle tests
+- a platform-neutral capture lifecycle and captured-packet normalization contract
+- a Windows WASAPI loopback owner for the default render endpoint
+- shared-mode packet draining with frame, flag, and timestamp counters
+- deterministic 48 kHz stereo float-to-signed-16-bit PCM conversion
+- native protocol, lifecycle, and captured-packet tests
 - a minimal Kotlin Android activity and JNI bridge
 
-Phase 2.1 does not drain captured audio packets or convert samples yet. UDP sockets,
-Opus, Android playback, jitter buffering, discovery, pairing, and encryption also
-remain unimplemented.
+Phase 2.2 drains and normalizes supported capture packets into local scratch memory.
+It does not yet assemble continuous 20 ms logical PCM frames or recover from default
+device changes. UDP sockets, Opus, Android playback, jitter buffering, discovery,
+pairing, and encryption also remain unimplemented.
 
 ## Build and test on Windows
 

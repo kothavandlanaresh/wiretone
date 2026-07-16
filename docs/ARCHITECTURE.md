@@ -30,14 +30,16 @@ state rules.
 
 ### `native/capture`
 
-Owns the platform-neutral capture lifecycle states and legal transitions. It contains
-no Windows headers and is tested independently from audio hardware.
+Owns platform-neutral capture lifecycle states, captured-packet metadata, and exact
+48 kHz stereo float-to-signed-16-bit PCM normalization. It contains no Windows
+headers and is tested independently from audio hardware.
 
 ### Windows sender
 
-Owns COM, endpoint discovery, WASAPI loopback initialization, Windows device lifecycle,
-transport transmission, and the desktop control surface. Phase 2.1 stops at endpoint
-inspection and clean start/stop; sample draining and normalization follow in Phase 2.2.
+Owns COM, endpoint discovery, WASAPI loopback initialization, packet acquisition and
+release, Windows device lifecycle, transport transmission, and the desktop control
+surface. Phase 2.2 drains all currently available packets on the owning thread and
+normalizes supported 48 kHz stereo float input into bounded local scratch memory.
 
 ### Android native layer
 

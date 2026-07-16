@@ -1,5 +1,6 @@
 #pragma once
 
+#include "wiretone/capture/captured_packet.hpp"
 #include "wiretone/capture/lifecycle.hpp"
 
 #include <cstdint>
@@ -39,18 +40,38 @@ enum class WasapiCaptureError {
     loopback_initialization_failed,
     capture_service_failed,
     buffer_size_failed,
+    unsupported_mix_format,
     stream_start_failed,
     stream_stop_failed,
+    next_packet_size_failed,
+    capture_buffer_failed,
+    capture_buffer_release_failed,
+    packet_size_mismatch,
+    packet_frame_count_exceeds_buffer,
+    unsupported_buffer_flags,
+    packet_conversion_failed,
+    device_invalidated,
 };
 
 struct WasapiCaptureSnapshot {
     capture::CaptureState state{capture::CaptureState::idle};
     WasapiCaptureError error{WasapiCaptureError::none};
+    capture::CapturedPacketError conversion_error{capture::CapturedPacketError::none};
     std::int32_t native_result{0};
     std::string endpoint_name{};
     std::string endpoint_id{};
     WasapiMixFormat mix_format{};
     std::uint32_t endpoint_buffer_frames{0};
+    bool normalization_supported{false};
+    std::uint64_t packets_drained{0};
+    std::uint64_t frames_drained{0};
+    std::uint64_t pcm_bytes_produced{0};
+    std::uint64_t silent_packets{0};
+    std::uint64_t discontinuity_packets{0};
+    std::uint64_t timestamp_error_packets{0};
+    std::uint64_t empty_poll_count{0};
+    std::uint64_t last_device_position_frames{0};
+    std::uint64_t last_qpc_position_100ns{0};
 };
 
 class WasapiLoopbackCapture {
@@ -65,6 +86,7 @@ public:
 
     [[nodiscard]] bool initialize() noexcept;
     [[nodiscard]] bool start() noexcept;
+    [[nodiscard]] bool drain_available() noexcept;
     [[nodiscard]] bool stop() noexcept;
 
     [[nodiscard]] WasapiCaptureSnapshot snapshot() const;

@@ -5,7 +5,9 @@ add_library(WireTone::Capture ALIAS wiretone_capture)
 target_sources(
     wiretone_capture
     PRIVATE
+        src/captured_packet.cpp
         src/lifecycle.cpp
+        include/wiretone/capture/captured_packet.hpp
         include/wiretone/capture/lifecycle.hpp
 )
 

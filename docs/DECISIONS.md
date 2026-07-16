@@ -131,3 +131,16 @@ and platform audio APIs can introduce timing, threading, and error complexity.
 and stream lifecycle should be proven before packet draining, sample conversion,
 threading, or transport are introduced. The platform-neutral lifecycle remains
 separately testable without Windows audio hardware.
+
+## D-016 — Phase 2.2 packet-drain and normalization boundary
+
+**Status:** Accepted
+**Decision:** Drain every currently available shared-mode WASAPI capture packet on
+the same thread that calls `GetBuffer` and `ReleaseBuffer`. Preserve frame counts,
+device/QPC positions, and silence, discontinuity, and timestamp-error flags. Convert
+only 48 kHz stereo 32-bit floating-point packets into signed 16-bit little-endian PCM
+using a preallocated endpoint-sized scratch buffer.
+**Reason:** This proves the complete acquisition and normalization boundary without
+introducing transport, a worker thread, resampling, channel remixing, or long-lived
+audio queues. Strict format rejection prevents silent reinterpretation of unsupported
+endpoint data.

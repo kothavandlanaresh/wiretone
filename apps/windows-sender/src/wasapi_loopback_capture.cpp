@@ -16,7 +16,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <utility>
+#include <vector>
 
 namespace wiretone::windows {
 namespace {
@@ -101,13 +103,51 @@ using Microsoft::WRL::ComPtr;
     return result;
 }
 
+[[nodiscard]] bool supports_phase_2_2_normalization(
+    const WasapiMixFormat& format,
+    const WAVEFORMATEX& native_format) noexcept {
+    return format.sample_rate == capture::normalized_sample_rate &&
+        format.channel_count == capture::normalized_channel_count &&
+        format.container_bits_per_sample == 32U &&
+        format.valid_bits_per_sample == 32U &&
+        format.sample_kind == WasapiSampleKind::floating_point &&
+        native_format.nBlockAlign == capture::float32_stereo_bytes_per_frame;
+}
+
+[[nodiscard]] bool is_device_invalidated(HRESULT result) noexcept {
+    return result == AUDCLNT_E_DEVICE_INVALIDATED ||
+        result == AUDCLNT_E_RESOURCES_INVALIDATED;
+}
+
+[[nodiscard]] std::uint32_t normalize_buffer_flags(DWORD flags) noexcept {
+    std::uint32_t result = 0U;
+    if ((flags & AUDCLNT_BUFFERFLAGS_SILENT) != 0U) {
+        result |= capture::captured_packet_flag_silence;
+    }
+    if ((flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) != 0U) {
+        result |= capture::captured_packet_flag_discontinuity;
+    }
+    if ((flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR) != 0U) {
+        result |= capture::captured_packet_flag_timestamp_error;
+    }
+    return result;
+}
+
+inline constexpr DWORD known_wasapi_buffer_flags =
+    AUDCLNT_BUFFERFLAGS_SILENT |
+    AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY |
+    AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR;
+
 } // namespace
 
 struct WasapiLoopbackCapture::Impl {
     capture::CaptureLifecycle lifecycle{};
     WasapiCaptureError error{WasapiCaptureError::none};
+    capture::CapturedPacketError conversion_error{capture::CapturedPacketError::none};
     HRESULT native_result{S_OK};
     bool com_initialized{false};
+    bool audio_started{false};
+    bool normalization_supported{false};
     ComPtr<IMMDeviceEnumerator> device_enumerator{};
     ComPtr<IMMDevice> endpoint{};
     ComPtr<IAudioClient> audio_client{};
@@ -117,10 +157,21 @@ struct WasapiLoopbackCapture::Impl {
     std::string endpoint_id{};
     WasapiMixFormat inspected_mix_format{};
     UINT32 endpoint_buffer_frames{0};
+    std::vector<std::byte> normalized_pcm_scratch{};
+    std::uint64_t packets_drained{0};
+    std::uint64_t frames_drained{0};
+    std::uint64_t pcm_bytes_produced{0};
+    std::uint64_t silent_packets{0};
+    std::uint64_t discontinuity_packets{0};
+    std::uint64_t timestamp_error_packets{0};
+    std::uint64_t empty_poll_count{0};
+    std::uint64_t last_device_position_frames{0};
+    std::uint64_t last_qpc_position_100ns{0};
 
     ~Impl() {
-        if (lifecycle.state() == capture::CaptureState::running && audio_client) {
+        if (audio_started && audio_client) {
             (void)audio_client->Stop();
+            audio_started = false;
         }
 
         if (mix_format != nullptr) {
@@ -138,15 +189,36 @@ struct WasapiLoopbackCapture::Impl {
         }
     }
 
-    [[nodiscard]] bool fail(WasapiCaptureError new_error, HRESULT result) noexcept {
+    [[nodiscard]] bool fail(
+        WasapiCaptureError new_error,
+        HRESULT result,
+        capture::CapturedPacketError packet_error =
+            capture::CapturedPacketError::none) noexcept {
+        if (audio_started && audio_client) {
+            (void)audio_client->Stop();
+            audio_started = false;
+        }
+
         error = new_error;
+        conversion_error = packet_error;
         native_result = result;
         lifecycle.fail();
         return false;
     }
 
+    [[nodiscard]] bool fail_capture_call(
+        WasapiCaptureError default_error,
+        HRESULT result) noexcept {
+        return fail(
+            is_device_invalidated(result)
+                ? WasapiCaptureError::device_invalidated
+                : default_error,
+            result);
+    }
+
     void clear_error() noexcept {
         error = WasapiCaptureError::none;
+        conversion_error = capture::CapturedPacketError::none;
         native_result = S_OK;
     }
 };
@@ -155,6 +227,7 @@ WasapiLoopbackCapture::WasapiLoopbackCapture()
     : impl_(std::make_unique<Impl>()) {}
 
 WasapiLoopbackCapture::~WasapiLoopbackCapture() = default;
+
 bool WasapiLoopbackCapture::initialize() noexcept {
     if (!impl_ || impl_->lifecycle.state() != capture::CaptureState::idle) {
         if (impl_) {
@@ -259,6 +332,14 @@ bool WasapiLoopbackCapture::initialize() noexcept {
         return impl_->fail(WasapiCaptureError::buffer_size_failed, result);
     }
 
+    impl_->normalization_supported = supports_phase_2_2_normalization(
+        impl_->inspected_mix_format,
+        *impl_->mix_format);
+    if (impl_->normalization_supported) {
+        impl_->normalized_pcm_scratch.resize(
+            capture::normalized_pcm_size_for_frames(impl_->endpoint_buffer_frames));
+    }
+
     const auto transition = impl_->lifecycle.prepare();
     if (transition != capture::CaptureTransitionError::none) {
         return impl_->fail(WasapiCaptureError::invalid_state, E_UNEXPECTED);
@@ -275,13 +356,149 @@ bool WasapiLoopbackCapture::start() noexcept {
         return false;
     }
 
+    if (!impl_->normalization_supported) {
+        return impl_->fail(WasapiCaptureError::unsupported_mix_format, E_INVALIDARG);
+    }
+
     const HRESULT result = impl_->audio_client->Start();
     if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::stream_start_failed, result);
+        return impl_->fail_capture_call(WasapiCaptureError::stream_start_failed, result);
     }
+    impl_->audio_started = true;
 
     if (impl_->lifecycle.start() != capture::CaptureTransitionError::none) {
         return impl_->fail(WasapiCaptureError::invalid_state, E_UNEXPECTED);
+    }
+
+    impl_->clear_error();
+    return true;
+}
+
+bool WasapiLoopbackCapture::drain_available() noexcept {
+    if (!impl_ || impl_->lifecycle.state() != capture::CaptureState::running) {
+        if (impl_) {
+            return impl_->fail(WasapiCaptureError::invalid_state, E_UNEXPECTED);
+        }
+        return false;
+    }
+
+    UINT32 next_packet_frames = 0U;
+    HRESULT result = impl_->capture_client->GetNextPacketSize(&next_packet_frames);
+    if (FAILED(result)) {
+        return impl_->fail_capture_call(
+            WasapiCaptureError::next_packet_size_failed,
+            result);
+    }
+
+    if (next_packet_frames == 0U) {
+        ++impl_->empty_poll_count;
+        impl_->clear_error();
+        return true;
+    }
+
+    while (next_packet_frames != 0U) {
+        BYTE* packet_data = nullptr;
+        UINT32 packet_frames = 0U;
+        DWORD raw_flags = 0U;
+        UINT64 device_position = 0U;
+        UINT64 qpc_position = 0U;
+
+        result = impl_->capture_client->GetBuffer(
+            &packet_data,
+            &packet_frames,
+            &raw_flags,
+            &device_position,
+            &qpc_position);
+        if (result == AUDCLNT_S_BUFFER_EMPTY) {
+            ++impl_->empty_poll_count;
+            impl_->clear_error();
+            return true;
+        }
+        if (FAILED(result)) {
+            return impl_->fail_capture_call(
+                WasapiCaptureError::capture_buffer_failed,
+                result);
+        }
+
+        WasapiCaptureError packet_error = WasapiCaptureError::none;
+        capture::CapturedPacketError conversion_error =
+            capture::CapturedPacketError::none;
+        std::size_t converted_output_size = 0U;
+        std::uint32_t normalized_flags = 0U;
+
+        if (packet_frames != next_packet_frames) {
+            packet_error = WasapiCaptureError::packet_size_mismatch;
+        } else if (packet_frames > impl_->endpoint_buffer_frames) {
+            packet_error = WasapiCaptureError::packet_frame_count_exceeds_buffer;
+        } else if ((raw_flags & ~known_wasapi_buffer_flags) != 0U) {
+            packet_error = WasapiCaptureError::unsupported_buffer_flags;
+        } else {
+            normalized_flags = normalize_buffer_flags(raw_flags);
+            const bool silent =
+                (normalized_flags & capture::captured_packet_flag_silence) != 0U;
+            const std::size_t input_size = silent
+                ? 0U
+                : static_cast<std::size_t>(packet_frames) *
+                    static_cast<std::size_t>(impl_->mix_format->nBlockAlign);
+
+            capture::CapturedPacketView packet{};
+            if (!silent && packet_data != nullptr) {
+                packet.data = std::span<const std::byte>(
+                    reinterpret_cast<const std::byte*>(packet_data),
+                    input_size);
+            }
+            packet.frame_count = packet_frames;
+            packet.flags = normalized_flags;
+            packet.device_position_frames = device_position;
+            packet.qpc_position_100ns = qpc_position;
+
+            const auto conversion =
+                capture::convert_float32_stereo_to_pcm_s16le(
+                    packet,
+                    impl_->normalized_pcm_scratch);
+            if (!conversion.ok()) {
+                packet_error = WasapiCaptureError::packet_conversion_failed;
+                conversion_error = conversion.error;
+            } else {
+                converted_output_size = conversion.output_size;
+            }
+        }
+
+        const HRESULT release_result =
+            impl_->capture_client->ReleaseBuffer(packet_frames);
+        if (FAILED(release_result)) {
+            return impl_->fail_capture_call(
+                WasapiCaptureError::capture_buffer_release_failed,
+                release_result);
+        }
+
+        if (packet_error != WasapiCaptureError::none) {
+            return impl_->fail(packet_error, E_INVALIDARG, conversion_error);
+        }
+
+        ++impl_->packets_drained;
+        impl_->frames_drained += packet_frames;
+        impl_->pcm_bytes_produced += converted_output_size;
+        impl_->last_device_position_frames = device_position;
+        impl_->last_qpc_position_100ns = qpc_position;
+
+        if ((normalized_flags & capture::captured_packet_flag_silence) != 0U) {
+            ++impl_->silent_packets;
+        }
+        if ((normalized_flags & capture::captured_packet_flag_discontinuity) != 0U) {
+            ++impl_->discontinuity_packets;
+        }
+        if ((normalized_flags & capture::captured_packet_flag_timestamp_error) != 0U) {
+            ++impl_->timestamp_error_packets;
+        }
+
+        next_packet_frames = 0U;
+        result = impl_->capture_client->GetNextPacketSize(&next_packet_frames);
+        if (FAILED(result)) {
+            return impl_->fail_capture_call(
+                WasapiCaptureError::next_packet_size_failed,
+                result);
+        }
     }
 
     impl_->clear_error();
@@ -298,8 +515,9 @@ bool WasapiLoopbackCapture::stop() noexcept {
 
     const HRESULT result = impl_->audio_client->Stop();
     if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::stream_stop_failed, result);
+        return impl_->fail_capture_call(WasapiCaptureError::stream_stop_failed, result);
     }
+    impl_->audio_started = false;
 
     if (impl_->lifecycle.stop() != capture::CaptureTransitionError::none) {
         return impl_->fail(WasapiCaptureError::invalid_state, E_UNEXPECTED);
@@ -320,11 +538,22 @@ WasapiCaptureSnapshot WasapiLoopbackCapture::snapshot() const {
 
     result.state = impl_->lifecycle.state();
     result.error = impl_->error;
+    result.conversion_error = impl_->conversion_error;
     result.native_result = static_cast<std::int32_t>(impl_->native_result);
     result.endpoint_name = impl_->endpoint_name;
     result.endpoint_id = impl_->endpoint_id;
     result.mix_format = impl_->inspected_mix_format;
     result.endpoint_buffer_frames = impl_->endpoint_buffer_frames;
+    result.normalization_supported = impl_->normalization_supported;
+    result.packets_drained = impl_->packets_drained;
+    result.frames_drained = impl_->frames_drained;
+    result.pcm_bytes_produced = impl_->pcm_bytes_produced;
+    result.silent_packets = impl_->silent_packets;
+    result.discontinuity_packets = impl_->discontinuity_packets;
+    result.timestamp_error_packets = impl_->timestamp_error_packets;
+    result.empty_poll_count = impl_->empty_poll_count;
+    result.last_device_position_frames = impl_->last_device_position_frames;
+    result.last_qpc_position_100ns = impl_->last_qpc_position_100ns;
     return result;
 }
 
@@ -369,10 +598,28 @@ std::string_view to_string(WasapiCaptureError error) noexcept {
         return "capture_service_failed";
     case WasapiCaptureError::buffer_size_failed:
         return "buffer_size_failed";
+    case WasapiCaptureError::unsupported_mix_format:
+        return "unsupported_mix_format";
     case WasapiCaptureError::stream_start_failed:
         return "stream_start_failed";
     case WasapiCaptureError::stream_stop_failed:
         return "stream_stop_failed";
+    case WasapiCaptureError::next_packet_size_failed:
+        return "next_packet_size_failed";
+    case WasapiCaptureError::capture_buffer_failed:
+        return "capture_buffer_failed";
+    case WasapiCaptureError::capture_buffer_release_failed:
+        return "capture_buffer_release_failed";
+    case WasapiCaptureError::packet_size_mismatch:
+        return "packet_size_mismatch";
+    case WasapiCaptureError::packet_frame_count_exceeds_buffer:
+        return "packet_frame_count_exceeds_buffer";
+    case WasapiCaptureError::unsupported_buffer_flags:
+        return "unsupported_buffer_flags";
+    case WasapiCaptureError::packet_conversion_failed:
+        return "packet_conversion_failed";
+    case WasapiCaptureError::device_invalidated:
+        return "device_invalidated";
     }
 
     return "unknown_wasapi_capture_error";
