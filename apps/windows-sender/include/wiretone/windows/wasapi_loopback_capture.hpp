@@ -2,6 +2,7 @@
 
 #include "wiretone/capture/captured_packet.hpp"
 #include "wiretone/capture/lifecycle.hpp"
+#include "wiretone/capture/pcm_frame_assembler.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -50,6 +51,7 @@ enum class WasapiCaptureError {
     packet_frame_count_exceeds_buffer,
     unsupported_buffer_flags,
     packet_conversion_failed,
+    frame_assembly_failed,
     device_invalidated,
 };
 
@@ -57,6 +59,8 @@ struct WasapiCaptureSnapshot {
     capture::CaptureState state{capture::CaptureState::idle};
     WasapiCaptureError error{WasapiCaptureError::none};
     capture::CapturedPacketError conversion_error{capture::CapturedPacketError::none};
+    capture::PcmFrameAssemblerError frame_assembler_error{
+        capture::PcmFrameAssemblerError::none};
     std::int32_t native_result{0};
     std::string endpoint_name{};
     std::string endpoint_id{};
@@ -72,6 +76,14 @@ struct WasapiCaptureSnapshot {
     std::uint64_t empty_poll_count{0};
     std::uint64_t last_device_position_frames{0};
     std::uint64_t last_qpc_position_100ns{0};
+    std::uint64_t completed_pcm_frames{0};
+    std::uint64_t silent_pcm_frames{0};
+    std::uint64_t discontinuity_pcm_frames{0};
+    std::uint64_t timestamp_error_pcm_frames{0};
+    std::uint64_t dropped_partial_pcm_frames{0};
+    std::uint64_t last_completed_pcm_sequence{0};
+    std::uint64_t last_completed_device_position_frames{0};
+    std::uint64_t last_completed_qpc_position_100ns{0};
 };
 
 class WasapiLoopbackCapture {

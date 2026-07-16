@@ -54,3 +54,11 @@ target_compile_features(wiretone_captured_packet_tests PRIVATE cxx_std_20)
 wiretone_enable_warnings(wiretone_captured_packet_tests)
 
 add_test(NAME wiretone_captured_packet_tests COMMAND wiretone_captured_packet_tests)
+
+add_executable(wiretone_pcm_frame_assembler_tests pcm_frame_assembler_tests.cpp)
+
+target_link_libraries(wiretone_pcm_frame_assembler_tests PRIVATE WireTone::Capture)
+target_compile_features(wiretone_pcm_frame_assembler_tests PRIVATE cxx_std_20)
+wiretone_enable_warnings(wiretone_pcm_frame_assembler_tests)
+
+add_test(NAME wiretone_pcm_frame_assembler_tests COMMAND wiretone_pcm_frame_assembler_tests)

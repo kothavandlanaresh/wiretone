@@ -144,6 +144,8 @@ struct WasapiLoopbackCapture::Impl {
     capture::CaptureLifecycle lifecycle{};
     WasapiCaptureError error{WasapiCaptureError::none};
     capture::CapturedPacketError conversion_error{capture::CapturedPacketError::none};
+    capture::PcmFrameAssemblerError frame_assembler_error{
+        capture::PcmFrameAssemblerError::none};
     HRESULT native_result{S_OK};
     bool com_initialized{false};
     bool audio_started{false};
@@ -158,6 +160,7 @@ struct WasapiLoopbackCapture::Impl {
     WasapiMixFormat inspected_mix_format{};
     UINT32 endpoint_buffer_frames{0};
     std::vector<std::byte> normalized_pcm_scratch{};
+    capture::PcmFrameAssembler frame_assembler{};
     std::uint64_t packets_drained{0};
     std::uint64_t frames_drained{0};
     std::uint64_t pcm_bytes_produced{0};
@@ -167,6 +170,55 @@ struct WasapiLoopbackCapture::Impl {
     std::uint64_t empty_poll_count{0};
     std::uint64_t last_device_position_frames{0};
     std::uint64_t last_qpc_position_100ns{0};
+    std::uint64_t completed_pcm_frames{0};
+    std::uint64_t silent_pcm_frames{0};
+    std::uint64_t discontinuity_pcm_frames{0};
+    std::uint64_t timestamp_error_pcm_frames{0};
+    std::uint64_t dropped_partial_pcm_frames{0};
+    std::uint64_t last_completed_pcm_sequence{0};
+    std::uint64_t last_completed_device_position_frames{0};
+    std::uint64_t last_completed_qpc_position_100ns{0};
+
+    static void on_completed_frame(
+        const capture::PcmFrameView& frame,
+        void* context) noexcept {
+        auto& self = *static_cast<Impl*>(context);
+        ++self.completed_pcm_frames;
+        self.last_completed_pcm_sequence = frame.sequence_number;
+        self.last_completed_device_position_frames = frame.device_position_frames;
+        self.last_completed_qpc_position_100ns = frame.qpc_position_100ns;
+
+        if ((frame.flags & capture::captured_packet_flag_silence) != 0U) {
+            ++self.silent_pcm_frames;
+        }
+        if ((frame.flags & capture::captured_packet_flag_discontinuity) != 0U) {
+            ++self.discontinuity_pcm_frames;
+        }
+        if ((frame.flags & capture::captured_packet_flag_timestamp_error) != 0U) {
+            ++self.timestamp_error_pcm_frames;
+        }
+    }
+
+    void reset_run_state() noexcept {
+        (void)frame_assembler.reset();
+        packets_drained = 0U;
+        frames_drained = 0U;
+        pcm_bytes_produced = 0U;
+        silent_packets = 0U;
+        discontinuity_packets = 0U;
+        timestamp_error_packets = 0U;
+        empty_poll_count = 0U;
+        last_device_position_frames = 0U;
+        last_qpc_position_100ns = 0U;
+        completed_pcm_frames = 0U;
+        silent_pcm_frames = 0U;
+        discontinuity_pcm_frames = 0U;
+        timestamp_error_pcm_frames = 0U;
+        dropped_partial_pcm_frames = 0U;
+        last_completed_pcm_sequence = 0U;
+        last_completed_device_position_frames = 0U;
+        last_completed_qpc_position_100ns = 0U;
+    }
 
     ~Impl() {
         if (audio_started && audio_client) {
@@ -193,14 +245,20 @@ struct WasapiLoopbackCapture::Impl {
         WasapiCaptureError new_error,
         HRESULT result,
         capture::CapturedPacketError packet_error =
-            capture::CapturedPacketError::none) noexcept {
+            capture::CapturedPacketError::none,
+        capture::PcmFrameAssemblerError assembler_error =
+            capture::PcmFrameAssemblerError::none) noexcept {
         if (audio_started && audio_client) {
             (void)audio_client->Stop();
             audio_started = false;
         }
 
+        if (frame_assembler.reset()) {
+            ++dropped_partial_pcm_frames;
+        }
         error = new_error;
         conversion_error = packet_error;
+        frame_assembler_error = assembler_error;
         native_result = result;
         lifecycle.fail();
         return false;
@@ -219,6 +277,7 @@ struct WasapiLoopbackCapture::Impl {
     void clear_error() noexcept {
         error = WasapiCaptureError::none;
         conversion_error = capture::CapturedPacketError::none;
+        frame_assembler_error = capture::PcmFrameAssemblerError::none;
         native_result = S_OK;
     }
 };
@@ -360,6 +419,8 @@ bool WasapiLoopbackCapture::start() noexcept {
         return impl_->fail(WasapiCaptureError::unsupported_mix_format, E_INVALIDARG);
     }
 
+    impl_->reset_run_state();
+
     const HRESULT result = impl_->audio_client->Start();
     if (FAILED(result)) {
         return impl_->fail_capture_call(WasapiCaptureError::stream_start_failed, result);
@@ -423,6 +484,9 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
         WasapiCaptureError packet_error = WasapiCaptureError::none;
         capture::CapturedPacketError conversion_error =
             capture::CapturedPacketError::none;
+        capture::PcmFrameAssemblerError frame_assembler_error =
+            capture::PcmFrameAssemblerError::none;
+        std::uint32_t dropped_partial_frames = 0U;
         std::size_t converted_output_size = 0U;
         std::uint32_t normalized_flags = 0U;
 
@@ -473,9 +537,33 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
         }
 
         if (packet_error != WasapiCaptureError::none) {
-            return impl_->fail(packet_error, E_INVALIDARG, conversion_error);
+            return impl_->fail(
+                packet_error,
+                E_INVALIDARG,
+                conversion_error,
+                frame_assembler_error);
         }
 
+        const auto assembly = impl_->frame_assembler.accept_packet(
+            std::span<const std::byte>(
+                impl_->normalized_pcm_scratch.data(),
+                converted_output_size),
+            packet_frames,
+            normalized_flags,
+            device_position,
+            qpc_position,
+            &Impl::on_completed_frame,
+            impl_.get());
+        if (!assembly.ok()) {
+            return impl_->fail(
+                WasapiCaptureError::frame_assembly_failed,
+                E_INVALIDARG,
+                capture::CapturedPacketError::none,
+                assembly.error);
+        }
+        dropped_partial_frames = assembly.dropped_partial_frames;
+
+        impl_->dropped_partial_pcm_frames += dropped_partial_frames;
         ++impl_->packets_drained;
         impl_->frames_drained += packet_frames;
         impl_->pcm_bytes_produced += converted_output_size;
@@ -518,6 +606,9 @@ bool WasapiLoopbackCapture::stop() noexcept {
         return impl_->fail_capture_call(WasapiCaptureError::stream_stop_failed, result);
     }
     impl_->audio_started = false;
+    if (impl_->frame_assembler.reset()) {
+        ++impl_->dropped_partial_pcm_frames;
+    }
 
     if (impl_->lifecycle.stop() != capture::CaptureTransitionError::none) {
         return impl_->fail(WasapiCaptureError::invalid_state, E_UNEXPECTED);
@@ -539,6 +630,7 @@ WasapiCaptureSnapshot WasapiLoopbackCapture::snapshot() const {
     result.state = impl_->lifecycle.state();
     result.error = impl_->error;
     result.conversion_error = impl_->conversion_error;
+    result.frame_assembler_error = impl_->frame_assembler_error;
     result.native_result = static_cast<std::int32_t>(impl_->native_result);
     result.endpoint_name = impl_->endpoint_name;
     result.endpoint_id = impl_->endpoint_id;
@@ -554,6 +646,16 @@ WasapiCaptureSnapshot WasapiLoopbackCapture::snapshot() const {
     result.empty_poll_count = impl_->empty_poll_count;
     result.last_device_position_frames = impl_->last_device_position_frames;
     result.last_qpc_position_100ns = impl_->last_qpc_position_100ns;
+    result.completed_pcm_frames = impl_->completed_pcm_frames;
+    result.silent_pcm_frames = impl_->silent_pcm_frames;
+    result.discontinuity_pcm_frames = impl_->discontinuity_pcm_frames;
+    result.timestamp_error_pcm_frames = impl_->timestamp_error_pcm_frames;
+    result.dropped_partial_pcm_frames = impl_->dropped_partial_pcm_frames;
+    result.last_completed_pcm_sequence = impl_->last_completed_pcm_sequence;
+    result.last_completed_device_position_frames =
+        impl_->last_completed_device_position_frames;
+    result.last_completed_qpc_position_100ns =
+        impl_->last_completed_qpc_position_100ns;
     return result;
 }
 
@@ -618,6 +720,8 @@ std::string_view to_string(WasapiCaptureError error) noexcept {
         return "unsupported_buffer_flags";
     case WasapiCaptureError::packet_conversion_failed:
         return "packet_conversion_failed";
+    case WasapiCaptureError::frame_assembly_failed:
+        return "frame_assembly_failed";
     case WasapiCaptureError::device_invalidated:
         return "device_invalidated";
     }

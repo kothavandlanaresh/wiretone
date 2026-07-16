@@ -21,6 +21,8 @@ void print_failure(const wiretone::windows::WasapiCaptureSnapshot& snapshot) {
     std::cerr << "Error: " << wiretone::windows::to_string(snapshot.error) << '\n';
     std::cerr << "Conversion error: "
               << wiretone::capture::to_string(snapshot.conversion_error) << '\n';
+    std::cerr << "Frame assembler error: "
+              << wiretone::capture::to_string(snapshot.frame_assembler_error) << '\n';
     std::cerr << "HRESULT: 0x"
               << std::hex << std::uppercase
               << static_cast<std::uint32_t>(snapshot.native_result)
@@ -66,30 +68,29 @@ int main() {
         return 1;
     }
     std::cout << "Loopback start: PASS\n";
-    std::cout << "Draining loopback packets for up to 2 seconds. "
+    std::cout << "Draining loopback packets for up to 3 seconds. "
                  "Play audio through the default endpoint now.\n";
 
     const auto deadline =
-        std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        std::chrono::steady_clock::now() + std::chrono::seconds(3);
     while (std::chrono::steady_clock::now() < deadline) {
         if (!capture.drain_available()) {
             print_failure(capture.snapshot());
             return 1;
         }
 
-        if (capture.snapshot().packets_drained != 0U) {
+        if (capture.snapshot().completed_pcm_frames != 0U) {
             break;
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    const auto drained = capture.snapshot();
-
     if (!capture.stop()) {
         print_failure(capture.snapshot());
         return 1;
     }
+    const auto drained = capture.snapshot();
     std::cout << "Loopback stop: PASS\n";
     std::cout << "Packets drained: " << drained.packets_drained << '\n';
     std::cout << "Frames drained: " << drained.frames_drained << '\n';
@@ -102,6 +103,21 @@ int main() {
               << drained.last_device_position_frames << " frames\n";
     std::cout << "Last QPC position: "
               << drained.last_qpc_position_100ns << " x 100 ns\n";
+    std::cout << "Completed 20 ms PCM frames: "
+              << drained.completed_pcm_frames << '\n';
+    std::cout << "Silent PCM frames: " << drained.silent_pcm_frames << '\n';
+    std::cout << "Discontinuity PCM frames: "
+              << drained.discontinuity_pcm_frames << '\n';
+    std::cout << "Timestamp-error PCM frames: "
+              << drained.timestamp_error_pcm_frames << '\n';
+    std::cout << "Dropped partial PCM frames: "
+              << drained.dropped_partial_pcm_frames << '\n';
+    std::cout << "Last completed PCM sequence: "
+              << drained.last_completed_pcm_sequence << '\n';
+    std::cout << "Last completed device position: "
+              << drained.last_completed_device_position_frames << " frames\n";
+    std::cout << "Last completed QPC position: "
+              << drained.last_completed_qpc_position_100ns << " x 100 ns\n";
 
     if (drained.packets_drained == 0U) {
         std::cerr << "Phase 2.2 packet drain: FAIL\n";
@@ -110,11 +126,18 @@ int main() {
         return 2;
     }
 
-    std::cout << "Phase 2.2 WASAPI packet drain and PCM normalization: PASS\n";
-    std::cout << "Normalized PCM remains local in scratch memory; UDP is not implemented yet.\n";
+    if (drained.completed_pcm_frames == 0U) {
+        std::cerr << "Phase 2.3 PCM frame assembly: FAIL\n";
+        std::cerr << "No complete 960-frame logical PCM frame was observed. "
+                     "Keep audio playing through the default endpoint and rerun.\n";
+        return 3;
+    }
+
+    std::cout << "Phase 2.3 exact 20 ms PCM frame assembly: PASS\n";
+    std::cout << "Completed PCM remains local in memory; UDP is not implemented yet.\n";
     return 0;
 #else
-    std::cout << "Phase 2.2 WASAPI probe is available only on Windows.\n";
+    std::cout << "Phase 2.3 WASAPI probe is available only on Windows.\n";
     return 0;
 #endif
 }

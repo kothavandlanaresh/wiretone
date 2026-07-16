@@ -144,3 +144,17 @@ using a preallocated endpoint-sized scratch buffer.
 introducing transport, a worker thread, resampling, channel remixing, or long-lived
 audio queues. Strict format rejection prevents silent reinterpretation of unsupported
 endpoint data.
+
+
+## D-017 — Bounded 20 ms PCM frame assembly
+
+**Status:** Accepted
+**Decision:** Assemble normalized 48 kHz stereo signed-16-bit PCM into exact 960-frame
+/ 3,840-byte logical frames with one fixed internal buffer and a synchronous non-owning
+completion callback. A capture discontinuity discards any partial frame and marks the
+first subsequent completed frame. Silence is marked only when every contributing
+region is silent, and timestamp errors propagate to each affected completed frame.
+**Reason:** The protocol contract requires exact 20 ms logical frames, while WASAPI
+packet lengths are device- and schedule-dependent. A bounded assembler isolates that
+variation without introducing queues, retained audio, transport, or heap activity in
+the steady-state framing path.

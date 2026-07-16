@@ -7,8 +7,10 @@ target_sources(
     PRIVATE
         src/captured_packet.cpp
         src/lifecycle.cpp
+        src/pcm_frame_assembler.cpp
         include/wiretone/capture/captured_packet.hpp
         include/wiretone/capture/lifecycle.hpp
+        include/wiretone/capture/pcm_frame_assembler.hpp
 )
 
 target_include_directories(

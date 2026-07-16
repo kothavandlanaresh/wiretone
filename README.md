@@ -31,11 +31,12 @@ Phase 1 is complete and owner-validated. The repository now contains:
 - a Windows WASAPI loopback owner for the default render endpoint
 - shared-mode packet draining with frame, flag, and timestamp counters
 - deterministic 48 kHz stereo float-to-signed-16-bit PCM conversion
-- native protocol, lifecycle, and captured-packet tests
+- bounded assembly of variable packet lengths into exact 960-frame / 20 ms PCM frames
+- native protocol, lifecycle, packet-conversion, and frame-assembler tests
 - a minimal Kotlin Android activity and JNI bridge
 
-Phase 2.2 drains and normalizes supported capture packets into local scratch memory.
-It does not yet assemble continuous 20 ms logical PCM frames or recover from default
+Phase 2.3 assembles normalized capture packets into exact 20 ms logical PCM frames
+through a bounded in-memory callback. It does not retain audio or recover from default
 device changes. UDP sockets, Opus, Android playback, jitter buffering, discovery,
 pairing, and encryption also remain unimplemented.
 
