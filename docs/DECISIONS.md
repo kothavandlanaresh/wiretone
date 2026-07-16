@@ -96,3 +96,14 @@ inside the shared C++ protocol library. Android and Windows wrappers consume typ
 values rather than hand-building byte arrays.
 **Reason:** One implementation prevents platform drift, keeps malformed input away
 from UI/audio state, and makes exact wire compatibility testable before networking.
+
+## D-013 — Bounded audio-frame fragmentation and reassembly
+
+**Status:** Accepted
+**Decision:** Limit the initial logical audio-frame payload to 3,840 bytes, split
+it canonically into at most four 1,168-byte protocol payloads, and reassemble
+within a fixed eight-frame window. Incomplete frames expire 250 ms after their
+most recently accepted fragment.
+**Reason:** The bound exactly covers the initial 20 ms / 48 kHz / stereo PCM
+frame, avoids heap allocation in the protocol path, makes memory use predictable,
+and prevents malformed or missing UDP fragments from growing receiver state.

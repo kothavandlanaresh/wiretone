@@ -207,6 +207,15 @@ void test_rejections() {
         wiretone::protocol::validate_header(stream_start) == ProtocolError::invalid_payload_size,
         "wrong stream-start payload size accepted");
 
+    PacketHeader zero_frame_audio{};
+    zero_frame_audio.type = PacketType::audio;
+    zero_frame_audio.stream_id = 1U;
+    zero_frame_audio.payload_size = 1U;
+    expect(
+        wiretone::protocol::validate_header(zero_frame_audio) ==
+            ProtocolError::audio_packet_has_zero_frame_id,
+        "zero audio frame id accepted");
+
     PacketHeader empty_audio{};
     empty_audio.type = PacketType::audio;
     empty_audio.stream_id = 1U;

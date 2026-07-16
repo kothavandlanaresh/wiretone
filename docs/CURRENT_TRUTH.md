@@ -48,11 +48,31 @@ Date: 2026-07-16
 - Shared internal byte-order helpers for header and control payload code.
 - Exact-byte, round-trip, and malformed-control-payload tests.
 
+## Owner-validated Phase 1.2
+
+- Windows MSVC build: PASS.
+- `wiretone_core_tests`: PASS.
+- `wiretone_protocol_tests`: PASS.
+- `wiretone_control_payload_tests`: PASS.
+- Android NDK rebuild with the control-payload library: PASS.
+- Git commit `57995a9` is published on `phase/01-protocol`.
+- Annotated tag `phase-1.2-pass` is published.
+
+## Implemented in Phase 1.3
+
+- Allocation-free fragmentation for logical audio frames up to 3,840 bytes.
+- Canonical four-datagram splitting for the initial 20 ms stereo PCM frame.
+- Sequence-number wrap preservation across fragments.
+- Fixed eight-frame reassembly window with a deterministic 250 ms expiry.
+- Out-of-order fragment acceptance.
+- Duplicate, inconsistent-metadata, noncanonical-size, and over-limit rejection.
+- Exact payload reconstruction and silence-frame handling.
+
 ## Pending owner validation
 
-- Apply the Phase 1.2 patch on Windows.
-- Confirm all three native test executables pass under MSVC.
-- Rebuild the Android APK so the new control-payload code compiles through NDK.
+- Apply the Phase 1.3 patch on Windows.
+- Confirm all four native test executables pass under MSVC.
+- Rebuild the Android APK so audio-frame code compiles through NDK.
 
 ## Not implemented
 

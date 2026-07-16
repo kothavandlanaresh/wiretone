@@ -5,9 +5,11 @@ add_library(WireTone::Protocol ALIAS wiretone_protocol)
 target_sources(
     wiretone_protocol
     PRIVATE
+        src/audio_frame.cpp
         src/byte_order.hpp
         src/control_payload.cpp
         src/packet.cpp
+        include/wiretone/protocol/audio_frame.hpp
         include/wiretone/protocol/control_payload.hpp
         include/wiretone/protocol/packet.hpp
 )

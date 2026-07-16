@@ -1,7 +1,7 @@
 # WireTone Protocol
 
 **Protocol version:** 1
-**Status:** Phase 1.2 packet envelope and control payloads locked
+**Status:** Phase 1.3 packet, control-payload, and audio-fragment contract locked
 **Transport:** UDP on the local network
 **Byte order:** Network byte order (big-endian) for every multi-byte integer in
 WireTone headers and control payloads
@@ -184,8 +184,23 @@ A 20 ms / 48 kHz / stereo PCM frame contains:
 - 3,840 payload bytes
 
 With the 1,168-byte payload ceiling, this logical frame is sent as four fragments.
-The first three may contain 1,168 bytes and the final fragment contains the
-remainder. The receiver reconstructs fragments in `fragment_index` order.
+Canonical version-1 fragmentation uses exactly 1,168 bytes for every non-final
+fragment and places the remainder in the final fragment. The initial PCM frame
+therefore uses payload sizes `1168, 1168, 1168, 336`.
+
+Phase 1.3 locks these implementation bounds and rules:
+
+- maximum logical audio payload: 3,840 bytes
+- maximum fragments per logical frame: 4
+- maximum concurrently incomplete frames: 8
+- incomplete-frame expiry: 250 ms since the most recently accepted fragment
+- fragments may arrive out of order
+- every fragment must preserve stream ID, frame ID, sample timestamp, flags,
+  fragment count, and the sequence base inferred as `sequence_number - fragment_index`
+- duplicate fragments and inconsistent metadata are rejected without mutating
+  the incomplete frame
+- a full reassembly window rejects a ninth frame rather than evicting live data
+- explicit silence is one unfragmented packet with an empty payload
 
 ### 7.2 Opus
 
@@ -209,7 +224,11 @@ A version-1 receiver must reject a datagram when any of these is true:
 - a control packet has non-zero `frame_id` or flags
 - declared payload size violates the packet-type schema
 - declared payload size does not equal the bytes actually received
+- audio packet has `frame_id = 0`
 - audio payload is empty without the `silence` flag
+- a non-final audio fragment is smaller than 1,168 bytes
+- a logical audio frame exceeds 3,840 bytes or four fragments
+- a silence frame is fragmented or carries payload bytes
 
 Malformed packets must be counted for diagnostics and otherwise ignored. They
 must not crash the sender or receiver and must not mutate active stream state.

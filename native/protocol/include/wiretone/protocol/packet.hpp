@@ -62,6 +62,7 @@ enum class ProtocolError {
     invalid_fragment_index,
     fragmented_control_packet,
     control_packet_has_frame_id,
+    audio_packet_has_zero_frame_id,
     invalid_payload_size,
     payload_length_mismatch,
     audio_payload_missing,

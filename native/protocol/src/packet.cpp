@@ -80,6 +80,10 @@ ProtocolError validate_header(const PacketHeader& header) noexcept {
         return ProtocolError::invalid_fragment_index;
     }
 
+    if (header.type == PacketType::audio && header.frame_id == 0U) {
+        return ProtocolError::audio_packet_has_zero_frame_id;
+    }
+
     if (is_control_packet(header.type)) {
         if (header.flags != 0U) {
             return ProtocolError::unknown_flags;
@@ -217,6 +221,8 @@ std::string_view to_string(ProtocolError error) noexcept {
         return "fragmented_control_packet";
     case ProtocolError::control_packet_has_frame_id:
         return "control_packet_has_frame_id";
+    case ProtocolError::audio_packet_has_zero_frame_id:
+        return "audio_packet_has_zero_frame_id";
     case ProtocolError::invalid_payload_size:
         return "invalid_payload_size";
     case ProtocolError::payload_length_mismatch:

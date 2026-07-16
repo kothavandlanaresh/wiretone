@@ -79,5 +79,33 @@ Date: 2026-07-16
 
 ### Owner-machine Phase 1.2 validation
 
+- MSVC build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- Android NDK rebuild with control-payload library: PASS
+- Commit `57995a9` pushed to `phase/01-protocol`: PASS
+- Annotated tag `phase-1.2-pass` pushed: PASS
+
+## Phase 1.3 — Validation environment
+
+Date: 2026-07-16
+
+- Audio-frame fragmentation implementation: COMPLETE
+- Bounded reassembly implementation: COMPLETE
+- CMake configure: PASS
+- C++ build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- Exact 3,840-byte PCM four-fragment test: PASS
+- Out-of-order reconstruction test: PASS
+- Duplicate and inconsistent-metadata rejection tests: PASS
+- Fixed-window and deterministic-expiry tests: PASS
+- Sequence-number wrap test: PASS
+
+### Owner-machine Phase 1.3 validation
+
 - MSVC build and all native tests: PENDING
-- Android NDK rebuild with control-payload library: PENDING
+- Android NDK rebuild with audio-frame library: PENDING

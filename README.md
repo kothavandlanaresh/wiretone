@@ -29,7 +29,8 @@ The repository currently contains:
 - a console sender shell
 - a shared version-1 packet-envelope library
 - typed control-payload encoders, parsers, and strict validation
-- native exact-byte, round-trip, and malformed-input tests
+- allocation-free audio-frame fragmentation and bounded reassembly
+- native exact-byte, round-trip, malformed-input, and reassembly tests
 - a minimal Kotlin Android activity
 - a JNI bridge that compiles and loads the shared C++ libraries
 - project governance and decision documents
