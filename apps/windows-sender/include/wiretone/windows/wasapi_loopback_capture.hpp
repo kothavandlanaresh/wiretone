@@ -3,6 +3,7 @@
 #include "wiretone/capture/captured_packet.hpp"
 #include "wiretone/capture/lifecycle.hpp"
 #include "wiretone/capture/pcm_frame_assembler.hpp"
+#include "wiretone/capture/recovery.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -32,6 +33,8 @@ enum class WasapiCaptureError {
     invalid_state,
     com_initialization_failed,
     device_enumerator_creation_failed,
+    endpoint_notification_client_creation_failed,
+    endpoint_notification_registration_failed,
     default_render_endpoint_failed,
     endpoint_id_failed,
     endpoint_property_store_failed,
@@ -53,6 +56,8 @@ enum class WasapiCaptureError {
     packet_conversion_failed,
     frame_assembly_failed,
     device_invalidated,
+    recovery_restart_failed,
+    recovery_unsupported_mix_format,
 };
 
 struct WasapiCaptureSnapshot {
@@ -84,6 +89,8 @@ struct WasapiCaptureSnapshot {
     std::uint64_t last_completed_pcm_sequence{0};
     std::uint64_t last_completed_device_position_frames{0};
     std::uint64_t last_completed_qpc_position_100ns{0};
+    capture::CaptureRecoverySnapshot recovery{};
+    std::uint64_t recovery_discontinuity_pcm_frames{0};
 };
 
 class WasapiLoopbackCapture {
@@ -99,6 +106,7 @@ public:
     [[nodiscard]] bool initialize() noexcept;
     [[nodiscard]] bool start() noexcept;
     [[nodiscard]] bool drain_available() noexcept;
+    [[nodiscard]] bool request_simulated_device_invalidation_for_probe() noexcept;
     [[nodiscard]] bool stop() noexcept;
 
     [[nodiscard]] WasapiCaptureSnapshot snapshot() const;

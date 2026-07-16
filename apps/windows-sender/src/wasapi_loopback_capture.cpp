@@ -13,10 +13,14 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <new>
 #include <span>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -138,19 +142,108 @@ inline constexpr DWORD known_wasapi_buffer_flags =
     AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY |
     AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR;
 
+inline constexpr std::uint32_t pending_recovery_device_invalidated = 0x01U;
+inline constexpr std::uint32_t pending_recovery_default_device_changed = 0x02U;
+
+class EndpointNotificationClient final : public IMMNotificationClient {
+public:
+    explicit EndpointNotificationClient(
+        std::atomic<std::uint32_t>* pending_recovery_flags) noexcept
+        : pending_recovery_flags_(pending_recovery_flags) {}
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        REFIID interface_id,
+        void** object) override {
+        if (object == nullptr) {
+            return E_POINTER;
+        }
+
+        if (InlineIsEqualGUID(interface_id, __uuidof(IUnknown)) != 0 ||
+            InlineIsEqualGUID(interface_id, __uuidof(IMMNotificationClient)) != 0) {
+            *object = static_cast<IMMNotificationClient*>(this);
+            AddRef();
+            return S_OK;
+        }
+
+        *object = nullptr;
+        return E_NOINTERFACE;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef() override {
+        return reference_count_.fetch_add(1U, std::memory_order_relaxed) + 1U;
+    }
+
+    ULONG STDMETHODCALLTYPE Release() override {
+        const ULONG remaining =
+            reference_count_.fetch_sub(1U, std::memory_order_acq_rel) - 1U;
+        if (remaining == 0U) {
+            delete this;
+        }
+        return remaining;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnDeviceStateChanged(LPCWSTR, DWORD) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnDeviceAdded(LPCWSTR) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnDeviceRemoved(LPCWSTR) override {
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnDefaultDeviceChanged(
+        EDataFlow flow,
+        ERole role,
+        LPCWSTR) override {
+        if (flow == eRender && role == eConsole && pending_recovery_flags_ != nullptr) {
+            pending_recovery_flags_->fetch_or(
+                pending_recovery_default_device_changed,
+                std::memory_order_release);
+        }
+        return S_OK;
+    }
+
+    HRESULT STDMETHODCALLTYPE OnPropertyValueChanged(
+        LPCWSTR,
+        const PROPERTYKEY) override {
+        return S_OK;
+    }
+
+private:
+    std::atomic<ULONG> reference_count_{1U};
+    std::atomic<std::uint32_t>* pending_recovery_flags_{nullptr};
+};
+
 } // namespace
 
 struct WasapiLoopbackCapture::Impl {
+    struct EndpointConfigurationResult {
+        WasapiCaptureError error{WasapiCaptureError::none};
+        HRESULT native_result{S_OK};
+
+        [[nodiscard]] bool ok() const noexcept {
+            return error == WasapiCaptureError::none;
+        }
+    };
+
     capture::CaptureLifecycle lifecycle{};
+    capture::CaptureRecoveryController recovery{};
     WasapiCaptureError error{WasapiCaptureError::none};
     capture::CapturedPacketError conversion_error{capture::CapturedPacketError::none};
     capture::PcmFrameAssemblerError frame_assembler_error{
         capture::PcmFrameAssemblerError::none};
     HRESULT native_result{S_OK};
     bool com_initialized{false};
+    bool notification_registered{false};
     bool audio_started{false};
     bool normalization_supported{false};
+    bool recovery_frame_pending{false};
+    std::atomic<std::uint32_t> pending_recovery_flags{0U};
     ComPtr<IMMDeviceEnumerator> device_enumerator{};
+    ComPtr<IMMNotificationClient> notification_client{};
     ComPtr<IMMDevice> endpoint{};
     ComPtr<IAudioClient> audio_client{};
     ComPtr<IAudioCaptureClient> capture_client{};
@@ -178,6 +271,7 @@ struct WasapiLoopbackCapture::Impl {
     std::uint64_t last_completed_pcm_sequence{0};
     std::uint64_t last_completed_device_position_frames{0};
     std::uint64_t last_completed_qpc_position_100ns{0};
+    std::uint64_t recovery_discontinuity_pcm_frames{0};
 
     static void on_completed_frame(
         const capture::PcmFrameView& frame,
@@ -197,10 +291,19 @@ struct WasapiLoopbackCapture::Impl {
         if ((frame.flags & capture::captured_packet_flag_timestamp_error) != 0U) {
             ++self.timestamp_error_pcm_frames;
         }
+
+        if (self.recovery_frame_pending) {
+            if ((frame.flags & capture::captured_packet_flag_discontinuity) != 0U) {
+                ++self.recovery_discontinuity_pcm_frames;
+            }
+            self.recovery_frame_pending = false;
+        }
     }
 
     void reset_run_state() noexcept {
         (void)frame_assembler.reset();
+        recovery.reset();
+        recovery_frame_pending = false;
         packets_drained = 0U;
         frames_drained = 0U;
         pcm_bytes_produced = 0U;
@@ -218,27 +321,123 @@ struct WasapiLoopbackCapture::Impl {
         last_completed_pcm_sequence = 0U;
         last_completed_device_position_frames = 0U;
         last_completed_qpc_position_100ns = 0U;
+        recovery_discontinuity_pcm_frames = 0U;
     }
 
-    ~Impl() {
+    void release_audio_resources() noexcept {
         if (audio_started && audio_client) {
             (void)audio_client->Stop();
-            audio_started = false;
         }
+        audio_started = false;
+
+        capture_client.Reset();
+        audio_client.Reset();
+        endpoint.Reset();
 
         if (mix_format != nullptr) {
             CoTaskMemFree(mix_format);
             mix_format = nullptr;
         }
 
-        capture_client.Reset();
-        audio_client.Reset();
-        endpoint.Reset();
-        device_enumerator.Reset();
+        endpoint_name.clear();
+        endpoint_id.clear();
+        inspected_mix_format = {};
+        endpoint_buffer_frames = 0U;
+        normalization_supported = false;
+        normalized_pcm_scratch.clear();
+    }
 
-        if (com_initialized) {
-            CoUninitialize();
+    [[nodiscard]] EndpointConfigurationResult configure_current_endpoint() noexcept {
+        release_audio_resources();
+
+        HRESULT result = device_enumerator->GetDefaultAudioEndpoint(
+            eRender,
+            eConsole,
+            &endpoint);
+        if (FAILED(result)) {
+            return {WasapiCaptureError::default_render_endpoint_failed, result};
         }
+
+        LPWSTR raw_endpoint_id = nullptr;
+        result = endpoint->GetId(&raw_endpoint_id);
+        if (FAILED(result)) {
+            return {WasapiCaptureError::endpoint_id_failed, result};
+        }
+        endpoint_id = wide_to_utf8(raw_endpoint_id);
+        CoTaskMemFree(raw_endpoint_id);
+
+        ComPtr<IPropertyStore> property_store;
+        result = endpoint->OpenPropertyStore(STGM_READ, &property_store);
+        if (FAILED(result)) {
+            return {WasapiCaptureError::endpoint_property_store_failed, result};
+        }
+
+        PROPVARIANT friendly_name;
+        PropVariantInit(&friendly_name);
+        result = property_store->GetValue(PKEY_Device_FriendlyName, &friendly_name);
+        if (FAILED(result)) {
+            PropVariantClear(&friendly_name);
+            return {WasapiCaptureError::endpoint_name_failed, result};
+        }
+        if (friendly_name.vt == VT_LPWSTR) {
+            endpoint_name = wide_to_utf8(friendly_name.pwszVal);
+        }
+        PropVariantClear(&friendly_name);
+
+        IAudioClient* raw_audio_client = nullptr;
+        result = endpoint->Activate(
+            __uuidof(IAudioClient),
+            CLSCTX_ALL,
+            nullptr,
+            reinterpret_cast<void**>(&raw_audio_client));
+        if (FAILED(result)) {
+            return {WasapiCaptureError::audio_client_activation_failed, result};
+        }
+        audio_client.Attach(raw_audio_client);
+
+        result = audio_client->GetMixFormat(&mix_format);
+        if (FAILED(result) || mix_format == nullptr) {
+            return {
+                WasapiCaptureError::mix_format_failed,
+                FAILED(result) ? result : E_POINTER,
+            };
+        }
+        inspected_mix_format = inspect_mix_format(*mix_format);
+
+        result = audio_client->Initialize(
+            AUDCLNT_SHAREMODE_SHARED,
+            AUDCLNT_STREAMFLAGS_LOOPBACK,
+            0,
+            0,
+            mix_format,
+            nullptr);
+        if (FAILED(result)) {
+            return {WasapiCaptureError::loopback_initialization_failed, result};
+        }
+
+        IAudioCaptureClient* raw_capture_client = nullptr;
+        result = audio_client->GetService(
+            __uuidof(IAudioCaptureClient),
+            reinterpret_cast<void**>(&raw_capture_client));
+        if (FAILED(result)) {
+            return {WasapiCaptureError::capture_service_failed, result};
+        }
+        capture_client.Attach(raw_capture_client);
+
+        result = audio_client->GetBufferSize(&endpoint_buffer_frames);
+        if (FAILED(result)) {
+            return {WasapiCaptureError::buffer_size_failed, result};
+        }
+
+        normalization_supported = supports_phase_2_2_normalization(
+            inspected_mix_format,
+            *mix_format);
+        if (normalization_supported) {
+            normalized_pcm_scratch.resize(
+                capture::normalized_pcm_size_for_frames(endpoint_buffer_frames));
+        }
+
+        return {};
     }
 
     [[nodiscard]] bool fail(
@@ -248,11 +447,7 @@ struct WasapiLoopbackCapture::Impl {
             capture::CapturedPacketError::none,
         capture::PcmFrameAssemblerError assembler_error =
             capture::PcmFrameAssemblerError::none) noexcept {
-        if (audio_started && audio_client) {
-            (void)audio_client->Stop();
-            audio_started = false;
-        }
-
+        release_audio_resources();
         if (frame_assembler.reset()) {
             ++dropped_partial_pcm_frames;
         }
@@ -274,11 +469,123 @@ struct WasapiLoopbackCapture::Impl {
             result);
     }
 
+    void queue_recovery(capture::CaptureRecoveryTrigger trigger) noexcept {
+        const std::uint32_t flag =
+            trigger == capture::CaptureRecoveryTrigger::default_device_changed
+                ? pending_recovery_default_device_changed
+                : pending_recovery_device_invalidated;
+        pending_recovery_flags.fetch_or(flag, std::memory_order_release);
+    }
+
+    [[nodiscard]] bool recover_if_requested() noexcept {
+        const std::uint32_t pending =
+            pending_recovery_flags.exchange(0U, std::memory_order_acq_rel);
+        if (pending == 0U) {
+            return true;
+        }
+
+        if ((pending & pending_recovery_device_invalidated) != 0U) {
+            if (recovery.request(capture::CaptureRecoveryTrigger::device_invalidated) !=
+                capture::CaptureRecoveryTransitionError::none) {
+                return fail(WasapiCaptureError::recovery_restart_failed, E_UNEXPECTED);
+            }
+        }
+        if ((pending & pending_recovery_default_device_changed) != 0U) {
+            if (recovery.request(capture::CaptureRecoveryTrigger::default_device_changed) !=
+                capture::CaptureRecoveryTransitionError::none) {
+                return fail(WasapiCaptureError::recovery_restart_failed, E_UNEXPECTED);
+            }
+        }
+
+        HRESULT last_result = E_FAIL;
+        WasapiCaptureError last_error = WasapiCaptureError::recovery_restart_failed;
+
+        while (recovery.state() == capture::CaptureRecoveryState::restart_pending) {
+            if (recovery.begin_attempt() !=
+                capture::CaptureRecoveryTransitionError::none) {
+                return fail(WasapiCaptureError::recovery_restart_failed, E_UNEXPECTED);
+            }
+
+            if (frame_assembler.discard_partial()) {
+                ++dropped_partial_pcm_frames;
+            }
+
+            const auto configuration = configure_current_endpoint();
+            if (!configuration.ok()) {
+                last_result = configuration.native_result;
+                last_error = configuration.error;
+                (void)recovery.complete_failure(true);
+                if (recovery.state() == capture::CaptureRecoveryState::restart_pending) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    continue;
+                }
+                return fail(WasapiCaptureError::recovery_restart_failed, last_result);
+            }
+
+            if (!normalization_supported) {
+                (void)recovery.complete_failure(false);
+                return fail(
+                    WasapiCaptureError::recovery_unsupported_mix_format,
+                    E_INVALIDARG);
+            }
+
+            const HRESULT start_result = audio_client->Start();
+            if (FAILED(start_result)) {
+                last_result = start_result;
+                last_error = WasapiCaptureError::stream_start_failed;
+                (void)recovery.complete_failure(true);
+                if (recovery.state() == capture::CaptureRecoveryState::restart_pending) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    continue;
+                }
+                return fail(WasapiCaptureError::recovery_restart_failed, last_result);
+            }
+
+            audio_started = true;
+            if (recovery.complete_success() !=
+                capture::CaptureRecoveryTransitionError::none) {
+                return fail(WasapiCaptureError::recovery_restart_failed, E_UNEXPECTED);
+            }
+            recovery_frame_pending = true;
+            clear_error();
+            return true;
+        }
+
+        return fail(last_error, last_result);
+    }
+
+    [[nodiscard]] bool recover_capture_call(
+        WasapiCaptureError default_error,
+        HRESULT result) noexcept {
+        if (!is_device_invalidated(result)) {
+            return fail(default_error, result);
+        }
+
+        queue_recovery(capture::CaptureRecoveryTrigger::device_invalidated);
+        return recover_if_requested();
+    }
+
     void clear_error() noexcept {
         error = WasapiCaptureError::none;
         conversion_error = capture::CapturedPacketError::none;
         frame_assembler_error = capture::PcmFrameAssemblerError::none;
         native_result = S_OK;
+    }
+
+    ~Impl() {
+        release_audio_resources();
+
+        if (notification_registered && device_enumerator && notification_client) {
+            (void)device_enumerator->UnregisterEndpointNotificationCallback(
+                notification_client.Get());
+            notification_registered = false;
+        }
+        notification_client.Reset();
+        device_enumerator.Reset();
+
+        if (com_initialized) {
+            CoUninitialize();
+        }
     }
 };
 
@@ -312,91 +619,27 @@ bool WasapiLoopbackCapture::initialize() noexcept {
         return impl_->fail(WasapiCaptureError::device_enumerator_creation_failed, result);
     }
 
-    result = impl_->device_enumerator->GetDefaultAudioEndpoint(
-        eRender,
-        eConsole,
-        &impl_->endpoint);
-    if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::default_render_endpoint_failed, result);
-    }
-
-    LPWSTR endpoint_id = nullptr;
-    result = impl_->endpoint->GetId(&endpoint_id);
-    if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::endpoint_id_failed, result);
-    }
-    impl_->endpoint_id = wide_to_utf8(endpoint_id);
-    CoTaskMemFree(endpoint_id);
-
-    ComPtr<IPropertyStore> property_store;
-    result = impl_->endpoint->OpenPropertyStore(STGM_READ, &property_store);
-    if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::endpoint_property_store_failed, result);
-    }
-
-    PROPVARIANT friendly_name;
-    PropVariantInit(&friendly_name);
-    result = property_store->GetValue(PKEY_Device_FriendlyName, &friendly_name);
-    if (FAILED(result)) {
-        PropVariantClear(&friendly_name);
-        return impl_->fail(WasapiCaptureError::endpoint_name_failed, result);
-    }
-
-    if (friendly_name.vt == VT_LPWSTR) {
-        impl_->endpoint_name = wide_to_utf8(friendly_name.pwszVal);
-    }
-    PropVariantClear(&friendly_name);
-
-    IAudioClient* audio_client = nullptr;
-    result = impl_->endpoint->Activate(
-        __uuidof(IAudioClient),
-        CLSCTX_ALL,
-        nullptr,
-        reinterpret_cast<void**>(&audio_client));
-    if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::audio_client_activation_failed, result);
-    }
-    impl_->audio_client.Attach(audio_client);
-
-    result = impl_->audio_client->GetMixFormat(&impl_->mix_format);
-    if (FAILED(result) || impl_->mix_format == nullptr) {
+    auto* notification_client = new (std::nothrow)
+        EndpointNotificationClient(&impl_->pending_recovery_flags);
+    if (notification_client == nullptr) {
         return impl_->fail(
-            WasapiCaptureError::mix_format_failed,
-            FAILED(result) ? result : E_POINTER);
+            WasapiCaptureError::endpoint_notification_client_creation_failed,
+            E_OUTOFMEMORY);
     }
-    impl_->inspected_mix_format = inspect_mix_format(*impl_->mix_format);
+    impl_->notification_client.Attach(notification_client);
 
-    result = impl_->audio_client->Initialize(
-        AUDCLNT_SHAREMODE_SHARED,
-        AUDCLNT_STREAMFLAGS_LOOPBACK,
-        0,
-        0,
-        impl_->mix_format,
-        nullptr);
+    result = impl_->device_enumerator->RegisterEndpointNotificationCallback(
+        impl_->notification_client.Get());
     if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::loopback_initialization_failed, result);
+        return impl_->fail(
+            WasapiCaptureError::endpoint_notification_registration_failed,
+            result);
     }
+    impl_->notification_registered = true;
 
-    IAudioCaptureClient* capture_client = nullptr;
-    result = impl_->audio_client->GetService(
-        __uuidof(IAudioCaptureClient),
-        reinterpret_cast<void**>(&capture_client));
-    if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::capture_service_failed, result);
-    }
-    impl_->capture_client.Attach(capture_client);
-
-    result = impl_->audio_client->GetBufferSize(&impl_->endpoint_buffer_frames);
-    if (FAILED(result)) {
-        return impl_->fail(WasapiCaptureError::buffer_size_failed, result);
-    }
-
-    impl_->normalization_supported = supports_phase_2_2_normalization(
-        impl_->inspected_mix_format,
-        *impl_->mix_format);
-    if (impl_->normalization_supported) {
-        impl_->normalized_pcm_scratch.resize(
-            capture::normalized_pcm_size_for_frames(impl_->endpoint_buffer_frames));
+    const auto configuration = impl_->configure_current_endpoint();
+    if (!configuration.ok()) {
+        return impl_->fail(configuration.error, configuration.native_result);
     }
 
     const auto transition = impl_->lifecycle.prepare();
@@ -443,10 +686,14 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
         return false;
     }
 
+    if (!impl_->recover_if_requested()) {
+        return false;
+    }
+
     UINT32 next_packet_frames = 0U;
     HRESULT result = impl_->capture_client->GetNextPacketSize(&next_packet_frames);
     if (FAILED(result)) {
-        return impl_->fail_capture_call(
+        return impl_->recover_capture_call(
             WasapiCaptureError::next_packet_size_failed,
             result);
     }
@@ -476,7 +723,7 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
             return true;
         }
         if (FAILED(result)) {
-            return impl_->fail_capture_call(
+            return impl_->recover_capture_call(
                 WasapiCaptureError::capture_buffer_failed,
                 result);
         }
@@ -489,6 +736,7 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
         std::uint32_t dropped_partial_frames = 0U;
         std::size_t converted_output_size = 0U;
         std::uint32_t normalized_flags = 0U;
+        bool apply_recovery_discontinuity = false;
 
         if (packet_frames != next_packet_frames) {
             packet_error = WasapiCaptureError::packet_size_mismatch;
@@ -498,6 +746,11 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
             packet_error = WasapiCaptureError::unsupported_buffer_flags;
         } else {
             normalized_flags = normalize_buffer_flags(raw_flags);
+            apply_recovery_discontinuity =
+                impl_->recovery.snapshot().discontinuity_pending;
+            if (apply_recovery_discontinuity) {
+                normalized_flags |= capture::captured_packet_flag_discontinuity;
+            }
             const bool silent =
                 (normalized_flags & capture::captured_packet_flag_silence) != 0U;
             const std::size_t input_size = silent
@@ -531,7 +784,7 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
         const HRESULT release_result =
             impl_->capture_client->ReleaseBuffer(packet_frames);
         if (FAILED(release_result)) {
-            return impl_->fail_capture_call(
+            return impl_->recover_capture_call(
                 WasapiCaptureError::capture_buffer_release_failed,
                 release_result);
         }
@@ -562,6 +815,9 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
                 assembly.error);
         }
         dropped_partial_frames = assembly.dropped_partial_frames;
+        if (apply_recovery_discontinuity) {
+            (void)impl_->recovery.consume_discontinuity();
+        }
 
         impl_->dropped_partial_pcm_frames += dropped_partial_frames;
         ++impl_->packets_drained;
@@ -583,12 +839,25 @@ bool WasapiLoopbackCapture::drain_available() noexcept {
         next_packet_frames = 0U;
         result = impl_->capture_client->GetNextPacketSize(&next_packet_frames);
         if (FAILED(result)) {
-            return impl_->fail_capture_call(
+            return impl_->recover_capture_call(
                 WasapiCaptureError::next_packet_size_failed,
                 result);
         }
     }
 
+    impl_->clear_error();
+    return true;
+}
+
+bool WasapiLoopbackCapture::request_simulated_device_invalidation_for_probe() noexcept {
+    if (!impl_ || impl_->lifecycle.state() != capture::CaptureState::running) {
+        if (impl_) {
+            return impl_->fail(WasapiCaptureError::invalid_state, E_UNEXPECTED);
+        }
+        return false;
+    }
+
+    impl_->queue_recovery(capture::CaptureRecoveryTrigger::device_invalidated);
     impl_->clear_error();
     return true;
 }
@@ -656,6 +925,9 @@ WasapiCaptureSnapshot WasapiLoopbackCapture::snapshot() const {
         impl_->last_completed_device_position_frames;
     result.last_completed_qpc_position_100ns =
         impl_->last_completed_qpc_position_100ns;
+    result.recovery = impl_->recovery.snapshot();
+    result.recovery_discontinuity_pcm_frames =
+        impl_->recovery_discontinuity_pcm_frames;
     return result;
 }
 
@@ -682,6 +954,10 @@ std::string_view to_string(WasapiCaptureError error) noexcept {
         return "com_initialization_failed";
     case WasapiCaptureError::device_enumerator_creation_failed:
         return "device_enumerator_creation_failed";
+    case WasapiCaptureError::endpoint_notification_client_creation_failed:
+        return "endpoint_notification_client_creation_failed";
+    case WasapiCaptureError::endpoint_notification_registration_failed:
+        return "endpoint_notification_registration_failed";
     case WasapiCaptureError::default_render_endpoint_failed:
         return "default_render_endpoint_failed";
     case WasapiCaptureError::endpoint_id_failed:
@@ -724,6 +1000,10 @@ std::string_view to_string(WasapiCaptureError error) noexcept {
         return "frame_assembly_failed";
     case WasapiCaptureError::device_invalidated:
         return "device_invalidated";
+    case WasapiCaptureError::recovery_restart_failed:
+        return "recovery_restart_failed";
+    case WasapiCaptureError::recovery_unsupported_mix_format:
+        return "recovery_unsupported_mix_format";
     }
 
     return "unknown_wasapi_capture_error";

@@ -283,6 +283,56 @@ int main() {
     {
         PcmFrameAssembler assembler;
         FrameCollector collector;
+        const auto first_frame = make_frame_bytes(std::byte{0x71});
+        const auto second_frame = make_frame_bytes(std::byte{0x72});
+        std::array<std::byte, normalized_pcm_size_for_frames(240U)> partial{};
+
+        const auto first_result = assembler.accept_packet(
+            first_frame,
+            logical_pcm_frame_samples,
+            0U,
+            1'000U,
+            2'000U,
+            collect_frame,
+            &collector);
+        const auto partial_result = assembler.accept_packet(
+            partial,
+            240U,
+            0U,
+            1'960U,
+            202'000U,
+            collect_frame,
+            &collector);
+
+        if (!first_result.ok() || !partial_result.ok() ||
+            collector.count != 1U || assembler.pending_frame_count() != 240U ||
+            assembler.next_sequence_number() != 2U) {
+            return fail("partial discard setup was not assembled correctly");
+        }
+
+        if (!assembler.discard_partial() || assembler.pending_frame_count() != 0U ||
+            assembler.next_sequence_number() != 2U) {
+            return fail("partial discard did not preserve sequence continuity");
+        }
+
+        const auto second_result = assembler.accept_packet(
+            second_frame,
+            logical_pcm_frame_samples,
+            captured_packet_flag_discontinuity,
+            3'000U,
+            4'000U,
+            collect_frame,
+            &collector);
+        if (!second_result.ok() || collector.count != 2U ||
+            collector.frames[1].sequence_number != 2U ||
+            (collector.frames[1].flags & captured_packet_flag_discontinuity) == 0U) {
+            return fail("post-discard frame did not preserve sequence or discontinuity");
+        }
+    }
+
+    {
+        PcmFrameAssembler assembler;
+        FrameCollector collector;
         std::array<std::byte, normalized_pcm_size_for_frames(100U)> partial{};
 
         const auto good = assembler.accept_packet(

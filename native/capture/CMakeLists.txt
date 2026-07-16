@@ -8,9 +8,11 @@ target_sources(
         src/captured_packet.cpp
         src/lifecycle.cpp
         src/pcm_frame_assembler.cpp
+        src/recovery.cpp
         include/wiretone/capture/captured_packet.hpp
         include/wiretone/capture/lifecycle.hpp
         include/wiretone/capture/pcm_frame_assembler.hpp
+        include/wiretone/capture/recovery.hpp
 )
 
 target_include_directories(

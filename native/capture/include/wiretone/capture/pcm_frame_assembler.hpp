@@ -54,6 +54,7 @@ public:
         PcmFrameSink sink,
         void* sink_context) noexcept;
 
+    [[nodiscard]] bool discard_partial() noexcept;
     [[nodiscard]] bool reset() noexcept;
 
     [[nodiscard]] std::uint32_t pending_frame_count() const noexcept;

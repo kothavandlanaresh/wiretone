@@ -30,18 +30,21 @@ state rules.
 
 ### `native/capture`
 
-Owns platform-neutral capture lifecycle states, captured-packet metadata, exact
-48 kHz stereo float-to-signed-16-bit PCM normalization, and bounded assembly into
-960-frame / 20 ms logical PCM frames. It contains no Windows headers and is tested
-independently from audio hardware.
+Owns platform-neutral capture lifecycle and recovery states, captured-packet metadata,
+exact 48 kHz stereo float-to-signed-16-bit PCM normalization, and bounded assembly
+into 960-frame / 20 ms logical PCM frames. Recovery attempts, triggers, success/failure
+counters, and post-recovery discontinuity state are testable without Windows headers
+or audio hardware.
 
 ### Windows sender
 
 Owns COM, endpoint discovery, WASAPI loopback initialization, packet acquisition and
 release, Windows device lifecycle, transport transmission, and the desktop control
-surface. Phase 2.3 drains packets on the owning thread, normalizes supported 48 kHz
-stereo float input into bounded scratch memory, and synchronously feeds exact 20 ms
-PCM frames into a non-owning in-memory completion callback.
+surface. Phase 2.4 registers an `IMMNotificationClient` for the default `eRender` /
+`eConsole` endpoint, coalesces endpoint-change and invalidation signals, discards partial
+PCM state while preserving completed-frame sequence continuity, and performs at most
+three endpoint reacquisition attempts on the owning thread. The first completed frame
+after a successful restart is marked discontinuous.
 
 ### Android native layer
 

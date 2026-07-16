@@ -32,13 +32,15 @@ Phase 1 is complete and owner-validated. The repository now contains:
 - shared-mode packet draining with frame, flag, and timestamp counters
 - deterministic 48 kHz stereo float-to-signed-16-bit PCM conversion
 - bounded assembly of variable packet lengths into exact 960-frame / 20 ms PCM frames
+- bounded default-device invalidation recovery with endpoint notification and restart counters
 - native protocol, lifecycle, packet-conversion, and frame-assembler tests
 - a minimal Kotlin Android activity and JNI bridge
 
-Phase 2.3 assembles normalized capture packets into exact 20 ms logical PCM frames
-through a bounded in-memory callback. It does not retain audio or recover from default
-device changes. UDP sockets, Opus, Android playback, jitter buffering, discovery,
-pairing, and encryption also remain unimplemented.
+Phase 2.4 adds bounded recovery for default render-endpoint changes and WASAPI
+invalidation. It discards only partial PCM state, preserves completed-frame sequence
+continuity, reacquires the current endpoint, and marks the first post-recovery frame as
+discontinuous. PCM is still not retained or transmitted. UDP sockets, Opus, Android
+playback, jitter buffering, discovery, pairing, and encryption remain unimplemented.
 
 ## Build and test on Windows
 

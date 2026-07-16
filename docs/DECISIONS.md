@@ -158,3 +158,18 @@ region is silent, and timestamp errors propagate to each affected completed fram
 packet lengths are device- and schedule-dependent. A bounded assembler isolates that
 variation without introducing queues, retained audio, transport, or heap activity in
 the steady-state framing path.
+
+## D-018 — Bounded default-device recovery
+
+**Status:** Accepted
+**Decision:** Register one `IMMNotificationClient` with the Windows endpoint enumerator
+and coalesce default `eRender` / `eConsole` changes with WASAPI invalidation results into
+one platform-neutral recovery controller. Recovery performs at most three immediate
+endpoint reacquisition attempts, discards partial PCM assembly without resetting the
+completed-frame sequence, rejects unsupported replacement formats, and marks the first
+post-recovery logical frame discontinuous.
+**Reason:** Windows default endpoints can change or become invalid while the sender is
+running. Recovery must not retain stale COM interfaces, hide a capture gap, grow
+unbounded retry state, or make platform callbacks the source of truth. A deterministic
+controller keeps event counts and restart policy testable while the Windows layer owns
+COM notification and endpoint reconstruction.

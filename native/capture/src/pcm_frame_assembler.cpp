@@ -124,9 +124,14 @@ PcmFrameAssemblyResult PcmFrameAssembler::accept_packet(
     return result;
 }
 
-bool PcmFrameAssembler::reset() noexcept {
+bool PcmFrameAssembler::discard_partial() noexcept {
     const bool discarded_partial = pending_frames_ != 0U;
     clear_partial();
+    return discarded_partial;
+}
+
+bool PcmFrameAssembler::reset() noexcept {
+    const bool discarded_partial = discard_partial();
     next_sequence_number_ = 1U;
     return discarded_partial;
 }
