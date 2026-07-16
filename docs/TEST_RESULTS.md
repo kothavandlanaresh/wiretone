@@ -170,3 +170,56 @@ Date: 2026-07-16
 - `AudioFrameReassembler::reset()` declaration and definition were both present in source.
 - Removing `out/build/windows` forced the correct rebuild and resolved the link error.
 - `scripts/bootstrap-windows.ps1` now uses CMake `--clean-first`: PASS
+
+## Phase 2.1 — Validation environment
+
+Date: 2026-07-16
+
+- Platform-neutral capture lifecycle implementation: COMPLETE
+- Default-render-endpoint WASAPI owner implementation: COMPLETE
+- Shared-mode loopback initialization path: COMPLETE
+- Mix-format and endpoint-buffer reporting: COMPLETE
+- Clean start/stop probe path: COMPLETE
+- CMake configure: PASS
+- C++ build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- GCC AddressSanitizer: PASS
+- GCC UndefinedBehaviorSanitizer: PASS
+
+### Owner-machine Phase 2.1 validation
+
+- Windows MSVC clean build: PASS
+- `wiretone_core_tests`: PASS
+- `wiretone_protocol_tests`: PASS
+- `wiretone_control_payload_tests`: PASS
+- `wiretone_audio_frame_tests`: PASS
+- `wiretone_session_tests`: PASS
+- `wiretone_capture_lifecycle_tests`: PASS
+- Windows SDK property-key include-order correction: PASS
+- Default render endpoint discovery: PASS
+- Endpoint friendly-name and endpoint-ID reporting: PASS
+- Shared-mode mix-format inspection: PASS
+- Endpoint-buffer frame reporting: PASS
+- Loopback start: PASS
+- Loopback stop: PASS
+- Final sender-shell Phase 2.1 result: PASS
+
+Observed owner-machine endpoint:
+
+```text
+Default render endpoint: Virtual Speakers (Virtual Speakers for AudioRelay)
+Mix format: 48000 Hz, 2 channels, 32 container bits, 32 valid bits, floating_point, extensible
+Endpoint buffer: 1056 frames
+```
+
+### Validation-environment note
+
+- The non-Windows validation environment could not compile or execute WASAPI.
+- GCC AddressSanitizer and UndefinedBehaviorSanitizer passed all six tests.
+- The container's Swift-packaged Clang sanitizer runtime crashed before `main()` for
+  every executable, including unchanged Phase 1 tests; it was not used as evidence.

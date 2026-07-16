@@ -1,31 +1,26 @@
 # Next Actions
 
-## Phase 2.1 — Windows capture boundary
+## Phase 2.2 — Drain and normalize captured packets
 
-Create the next workstream branch from the validated Phase 1 checkpoint:
+Stay on branch `phase/02-windows-capture`.
 
-```powershell
-Set-Location "$HOME\source\wiretone"
-git switch -c "phase/02-windows-capture"
-git push -u origin "phase/02-windows-capture"
-```
+Implement the next bounded Windows capture increment:
 
-Implement a testable Windows WASAPI loopback capture boundary:
+- drain `IAudioCaptureClient` packets without adding network transport
+- preserve packet frame counts and WASAPI capture flags
+- surface silent, discontinuous, timestamp-error, and device-invalidated events
+- define a platform-neutral captured-packet view for deterministic tests
+- convert supported 48 kHz stereo floating-point input into signed 16-bit
+  interleaved PCM
+- validate clipping, silence, channel order, frame counts, and discontinuity behavior
+- keep endpoint discovery and COM/WASAPI ownership inside the Windows sender layer
 
-- enumerate the default render endpoint
-- open shared-mode loopback capture
-- keep COM and WASAPI ownership inside the Windows sender layer
-- normalize capture output into the locked 48 kHz stereo PCM contract
-- surface silence, discontinuity, device-change, and recoverable-error events
-- separate sample conversion tests from live device integration tests
-- preserve the protocol library as a platform-independent dependency
+## Phase 2.2 validation gate
 
-## Phase 2.1 validation gate
+- all existing six native tests remain green
+- new packet-drain and sample-conversion tests pass under MSVC
+- a live sender probe drains real loopback packets and reports frame/flag counters
+- captured output remains local in memory; no UDP transmission is introduced
 
-- native unit tests for sample-format normalization and capture-state transitions
-- Windows integration check against the current default render endpoint
-- sender shell can start capture, report format/device details, and stop cleanly
-- no protocol regression across the existing five native test executables
-
-Do not add UDP transport, Android playback, jitter-buffer timing, or Opus during
-the initial Phase 2 capture increment.
+Do not add UDP transport, Android playback, jitter-buffer timing, Opus, discovery,
+pairing, or encryption during Phase 2.2.
