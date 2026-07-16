@@ -21,26 +21,21 @@ No cloud account, telemetry, advertising, or remote relay is part of V1.
 
 ## Current phase
 
-**Phase 2 — Windows capture in progress**
+**Phase 3 — Android output in progress**
 
-Phase 1 is complete and owner-validated. The repository now contains:
+Phases 1 and 2 are complete and owner-validated. The repository now contains:
 
-- a shared version-1 packet and control-payload contract
-- bounded audio fragmentation, reassembly, and receiver-session state
-- a platform-neutral capture lifecycle and captured-packet normalization contract
-- a Windows WASAPI loopback owner for the default render endpoint
-- shared-mode packet draining with frame, flag, and timestamp counters
-- deterministic 48 kHz stereo float-to-signed-16-bit PCM conversion
-- bounded assembly of variable packet lengths into exact 960-frame / 20 ms PCM frames
-- bounded default-device invalidation recovery with endpoint notification and restart counters
-- native protocol, lifecycle, packet-conversion, and frame-assembler tests
-- a minimal Kotlin Android activity and JNI bridge
+- the versioned packet/control protocol and bounded receiver session
+- Windows WASAPI loopback capture, PCM normalization, exact 20 ms framing, and recovery
+- a platform-neutral playback lifecycle
+- an Android NDK AAudio output owner in callback mode
+- requested 48 kHz stereo signed 16-bit PCM, shared output, and low-latency performance
+- negotiated stream-property and callback/underrun/disconnect counters
+- a thin Kotlin UI and JNI surface for open, start, stop, close, and status
 
-Phase 2.4 adds bounded recovery for default render-endpoint changes and WASAPI
-invalidation. It discards only partial PCM state, preserves completed-frame sequence
-continuity, reacquires the current endpoint, and marks the first post-recovery frame as
-discontinuous. PCM is still not retained or transmitted. UDP sockets, Opus, Android
-playback, jitter buffering, discovery, pairing, and encryption remain unimplemented.
+Phase 3.1 renders silence only. It proves native Android output negotiation and lifecycle
+without introducing network transport, PCM queues, jitter buffering, Opus, discovery,
+pairing, or encryption. The first Windows-to-Android PCM path remains Phase 4.
 
 ## Build and test on Windows
 
@@ -58,12 +53,12 @@ Set-Location C:\Path\To\wiretone
 .\scripts\run-sender-shell.ps1
 ```
 
-## Build Android shell
+## Build Android output boundary
 
 Open `apps/android-receiver` in Android Studio. Install the SDK, NDK, CMake, and LLDB
 components requested by the project, then run the `app` configuration on the Pixel 9a.
 
-The screen should display the version returned through JNI from the C++ core.
+The screen opens the AAudio stream, reports negotiated properties, and provides controls to start and stop silence rendering. Callback and rendered-frame counters should become non-zero while running.
 
 ## Documents
 

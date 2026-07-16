@@ -46,10 +46,17 @@ PCM state while preserving completed-frame sequence continuity, and performs at 
 three endpoint reacquisition attempts on the owning thread. The first completed frame
 after a successful restart is marked discontinuous.
 
+### `native/playback`
+
+Owns platform-neutral playback lifecycle states and transition rules. It contains no
+Android headers and remains testable on Windows and Linux.
+
 ### Android native layer
 
-Owns receive-side packet processing, jitter management, decoding, and performance-sensitive
-audio state.
+Owns AAudio stream construction, negotiated-property inspection, callback rendering,
+error/disconnect signaling, receive-side packet processing, jitter management, decoding,
+and performance-sensitive audio state. Phase 3.1 implements only the AAudio boundary and
+renders silence. The callback performs no allocation, locking, logging, JNI, or blocking work.
 
 ### Android Kotlin layer
 

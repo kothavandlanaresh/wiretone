@@ -21,13 +21,28 @@ add_subdirectory(
     "${CMAKE_CURRENT_BINARY_DIR}/wiretone-protocol"
 )
 
-add_library(wiretone_native SHARED native_bridge.cpp)
+add_subdirectory(
+    "${WIRETONE_ROOT}/native/playback"
+    "${CMAKE_CURRENT_BINARY_DIR}/wiretone-playback"
+)
+
+find_library(AAUDIO_LIBRARY aaudio REQUIRED)
+
+add_library(
+    wiretone_native
+    SHARED
+        native_bridge.cpp
+        aaudio_output.cpp
+        aaudio_output.hpp
+)
 
 target_link_libraries(
     wiretone_native
     PRIVATE
         WireTone::Core
         WireTone::Protocol
+        WireTone::Playback
+        ${AAUDIO_LIBRARY}
 )
 target_compile_features(wiretone_native PRIVATE cxx_std_20)
 

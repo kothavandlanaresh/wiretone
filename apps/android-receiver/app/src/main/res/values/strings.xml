@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WireTone</string>
+    <string name="start_silence_output">Start silence output</string>
+    <string name="stop_output">Stop output</string>
 </resources>

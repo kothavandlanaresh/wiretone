@@ -173,3 +173,15 @@ running. Recovery must not retain stale COM interfaces, hide a capture gap, grow
 unbounded retry state, or make platform callbacks the source of truth. A deterministic
 controller keeps event counts and restart policy testable while the Windows layer owns
 COM notification and endpoint reconstruction.
+
+## D-019 — Initial Android AAudio output boundary
+
+**Status:** Accepted
+**Decision:** Own Android playback in NDK C++ through one AAudio callback output stream.
+Request 48 kHz stereo signed 16-bit PCM, shared mode, and low-latency performance, then
+query and report the negotiated stream properties. Phase 3.1 renders silence only and
+keeps the callback limited to zero-fill plus atomic counters.
+**Reason:** Native stream negotiation, callback scheduling, lifecycle, disconnection,
+and underrun visibility must be proven on the Pixel before network timing or PCM queue
+behavior is introduced. The real-time callback cannot allocate, lock, log, call JNI, or
+perform blocking work.

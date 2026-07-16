@@ -5,33 +5,22 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $RepoRoot
 
-. (Join-Path $PSScriptRoot "toolchain-common.ps1")
-
-$git = Get-Command "git.exe" -ErrorAction SilentlyContinue
-if ($null -eq $git) {
-    throw "Git is required but was not found."
+if ($null -eq (Get-Command "git" -ErrorAction SilentlyContinue)) {
+    throw "git is required but was not found on PATH."
 }
 
-$java = Get-WireToneJavaInfo -MinimumMajorVersion 17
-if ($null -eq $java) {
-    throw "JDK 17 or newer was not found. Install Android Studio or set JAVA_HOME to a JDK 17+ installation."
-}
+$JavaCommand = Get-Command "java" -ErrorAction SilentlyContinue
+if ($null -eq $JavaCommand) {
+    $BundledJdk = Join-Path $env:ProgramFiles "Android\Android Studio\jbr"
+    $BundledJava = Join-Path $BundledJdk "bin\java.exe"
 
-$env:JAVA_HOME = $java.Home
-$env:Path = "$($java.Home)\bin;$($env:Path)"
-Write-Host "Using Java $($java.Major): $($java.JavaExe) ($($java.Label))"
+    if (-not (Test-Path $BundledJava)) {
+        throw "Java 17 was not found. Install Android Studio or set JAVA_HOME to a JDK 17 installation."
+    }
 
-$androidSdk = Get-WireToneAndroidSdkInfo
-if ($null -eq $androidSdk) {
-    throw "Android SDK was not found. Install Android Studio and complete its SDK setup."
-}
-
-$env:ANDROID_SDK_ROOT = $androidSdk.Root
-$env:ANDROID_HOME = $androidSdk.Root
-Write-Host "Using Android SDK: $($androidSdk.Root)"
-
-if ([string]::IsNullOrWhiteSpace($androidSdk.Adb)) {
-    throw "Android SDK Platform Tools are missing. Install Android SDK Platform-Tools in Android Studio's SDK Manager."
+    $env:JAVA_HOME = $BundledJdk
+    $env:Path = "$($BundledJdk)\bin;$($env:Path)"
+    Write-Host "Using Android Studio bundled JDK: $BundledJdk"
 }
 
 $AndroidRoot = Join-Path $RepoRoot "apps\android-receiver"
@@ -47,7 +36,7 @@ if (-not (Test-Path $WrapperJar)) {
     Invoke-WebRequest -Uri $WrapperUrl -OutFile $WrapperJar
 }
 
-$ActualGitBlobSha = (& $git.Source hash-object $WrapperJar).Trim()
+$ActualGitBlobSha = (& git hash-object $WrapperJar).Trim()
 if ($LASTEXITCODE -ne 0) {
     throw "Could not calculate the Gradle wrapper Git blob SHA."
 }
@@ -58,23 +47,16 @@ if ($ActualGitBlobSha -ne $ExpectedGitBlobSha) {
 }
 
 Set-Location $AndroidRoot
-
-Write-Host "Gradle wrapper verified."
+Write-Host "Gradle wrapper verified. Checking the Android build configuration."
 .\gradlew.bat --version
 if ($LASTEXITCODE -ne 0) {
     throw "Gradle wrapper startup failed."
 }
 
-Write-Host "Building the Android debug app and JNI library."
-.\gradlew.bat :app:assembleDebug --stacktrace
+Write-Host "Building WireTone Android debug APK and native library"
+.\gradlew.bat :app:assembleDebug
 if ($LASTEXITCODE -ne 0) {
-    throw "Android debug build failed."
+    throw "WireTone Android debug build failed."
 }
 
-$apk = Join-Path $AndroidRoot "app\build\outputs\apk\debug\app-debug.apk"
-if (-not (Test-Path $apk)) {
-    throw "Gradle reported success, but the debug APK was not found at $apk."
-}
-
-Write-Host "Debug APK: $apk"
-Write-Host "WireTone Android foundation: PASS"
+Write-Host "WireTone Android bootstrap: PASS"
